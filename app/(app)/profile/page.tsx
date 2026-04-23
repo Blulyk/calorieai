@@ -106,7 +106,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-lg mx-auto bg-dark-base min-h-screen">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between" style={{ background: 'rgba(8,8,8,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid #111' }}>
+      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between header-glass">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Perfil</h1>
           <p className="text-xs text-zinc-600 mt-0.5">@{username}</p>

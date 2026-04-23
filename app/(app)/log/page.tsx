@@ -91,7 +91,7 @@ export default function LogPage() {
   return (
     <div className="max-w-lg mx-auto bg-dark-base min-h-screen">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center gap-3" style={{ background: 'rgba(8,8,8,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid #111' }}>
+      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center gap-3 header-glass">
         <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-dark-surface border border-dark-border flex items-center justify-center active:scale-90 transition-transform">
           <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -158,7 +158,7 @@ export default function LogPage() {
             <button
               onClick={() => router.push('/recetario')}
               className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-brand-400 font-semibold text-sm active:scale-95 transition-transform border border-brand-500/25"
-              style={{ background: 'rgba(34,197,94,0.06)' }}
+              style={{ background: 'rgba(249,115,22,0.06)' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -197,7 +197,7 @@ export default function LogPage() {
             {result && (
               <div className="bg-dark-surface border border-dark-border rounded-3xl overflow-hidden animate-slide-up">
                 {/* Result header */}
-                <div className="p-5 border-b border-dark-border" style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03))' }}>
+                <div className="p-5 border-b border-dark-border" style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(249,115,22,0.03))' }}>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-zinc-100 font-bold text-lg">Análisis IA</h2>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 bg-dark-elevated border-dark-border'}`}>

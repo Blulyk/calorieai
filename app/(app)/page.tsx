@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import CalorieRing from '@/components/CalorieRing'
+import CalorieRing, { type CalorieSegment } from '@/components/CalorieRing'
 import MacroBars from '@/components/MacroBars'
 import MealCard from '@/components/MealCard'
 import WaterTracker from '@/components/WaterTracker'
@@ -56,6 +56,13 @@ export default function Dashboard() {
 
   const goal = settings?.calorie_goal || 2000
 
+  const segments: CalorieSegment[] = ['breakfast', 'lunch', 'dinner', 'snack']
+    .map(type => ({
+      mealType: type,
+      calories: meals.filter(m => m.meal_type === type).reduce((s, m) => s + m.calories, 0),
+    }))
+    .filter(s => s.calories > 0)
+
   function removeMeal(id: string) {
     const m = meals.find(m => m.id === id)
     setMeals(ms => ms.filter(m => m.id !== id))
@@ -79,7 +86,7 @@ export default function Dashboard() {
   return (
     <div className="max-w-lg mx-auto min-h-screen">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 sticky top-0 z-10" style={{ background: 'rgba(10,10,18,0.85)', backdropFilter: 'blur(40px) saturate(180%)', WebkitBackdropFilter: 'blur(40px) saturate(180%)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 header-glass">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-widest">
@@ -116,7 +123,7 @@ export default function Dashboard() {
 
         {/* Calorie ring */}
         <div className="glass-strong rounded-3xl p-6 flex flex-col items-center">
-          <CalorieRing consumed={stats.calories} goal={goal} size={180} />
+          <CalorieRing segments={segments} goal={goal} />
           <div className="w-full mt-5 pt-5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             <MacroBars protein={stats.protein} carbs={stats.carbs} fat={stats.fat} />
           </div>

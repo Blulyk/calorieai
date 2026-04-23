@@ -91,13 +91,12 @@ export default function RecetarioPage() {
 
   return (
     <div className="max-w-lg mx-auto min-h-screen">
-      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between"
-        style={{ background: 'rgba(10,10,18,0.85)', backdropFilter: 'blur(40px) saturate(180%)', WebkitBackdropFilter: 'blur(40px) saturate(180%)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between header-glass">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Recetario</h1>
           <p className="text-xs text-zinc-500 mt-0.5 uppercase tracking-widest">{recipes.length} receta{recipes.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-brand-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(34,197,94,0.3)' }}>
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-brand-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           Nueva
         </button>
@@ -109,7 +108,7 @@ export default function RecetarioPage() {
             <div className="text-5xl mb-3">📖</div>
             <p className="font-bold text-zinc-200 text-lg">Tu recetario está vacío</p>
             <p className="text-sm text-zinc-500 mt-1 mb-5">Guarda recetas y la IA calculará los valores nutricionales</p>
-            <button onClick={() => setShowForm(true)} className="bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-2xl text-sm active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(34,197,94,0.3)' }}>Añadir primera receta</button>
+            <button onClick={() => setShowForm(true)} className="bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-2xl text-sm active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}>Añadir primera receta</button>
           </div>
         )}
 
@@ -193,7 +192,7 @@ export default function RecetarioPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => { if (e.target === e.currentTarget) setShowForm(false) }}>
-          <div className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden animate-slide-up" style={{ background: 'linear-gradient(180deg,rgba(20,20,38,0.98) 0%,rgba(10,10,20,1) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none', maxHeight: '92vh', overflowY: 'auto' }}>
+          <div className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden animate-slide-up" style={{ background: 'linear-gradient(180deg,rgba(25,25,45,0.98) 0%,rgba(18,18,32,1) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none', maxHeight: '92vh', overflowY: 'auto' }}>
             <div className="px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
               <h2 className="text-lg font-bold text-zinc-100">Nueva receta</h2>
               <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -246,7 +245,7 @@ export default function RecetarioPage() {
               {formError && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">{formError}</div>}
               <div className="flex gap-3 pb-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3.5 rounded-2xl text-zinc-400 font-semibold text-sm border" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>Cancelar</button>
-                <button type="submit" disabled={analyzing} className="flex-1 py-3.5 rounded-2xl bg-brand-500 text-white font-semibold text-sm active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-2" style={{ boxShadow: '0 0 16px rgba(34,197,94,0.3)' }}>
+                <button type="submit" disabled={analyzing} className="flex-1 py-3.5 rounded-2xl bg-brand-500 text-white font-semibold text-sm active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-2" style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}>
                   {analyzing ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Analizando…</> : '🤖 Guardar receta'}
                 </button>
               </div>

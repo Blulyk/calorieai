@@ -73,8 +73,7 @@ export default function HistoryPage() {
 
   return (
     <div className="max-w-lg mx-auto min-h-screen">
-      <div className="px-5 pt-12 pb-4 sticky top-0 z-10"
-        style={{ background: 'rgba(10,10,18,0.85)', backdropFilter: 'blur(40px) saturate(180%)', WebkitBackdropFilter: 'blur(40px) saturate(180%)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 header-glass">
         <h1 className="text-2xl font-bold text-zinc-100 mb-3">Historial</h1>
         <div className="flex items-center justify-between">
           <button onClick={prevMonth} className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
