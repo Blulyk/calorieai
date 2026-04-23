@@ -14,14 +14,20 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    const data = await res.json()
-    if (!res.ok) { setError(data.error); setLoading(false); return }
-    router.replace('/')
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const text = await res.text()
+      const data = text ? JSON.parse(text) : {}
+      if (!res.ok) { setError(data.error || 'Login failed'); setLoading(false); return }
+      router.replace('/')
+    } catch {
+      setError('Server error — please try again')
+      setLoading(false)
+    }
   }
 
   return (
