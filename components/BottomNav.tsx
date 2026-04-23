@@ -58,7 +58,10 @@ export default function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed z-50 glass-nav" style={{ bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 12px))', left: '12px', right: '12px', borderRadius: '28px', maxWidth: '520px', marginLeft: 'auto', marginRight: 'auto' }}>
+    <nav className="fixed z-50 glass-nav overflow-hidden" style={{ bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 12px))', left: '12px', right: '12px', borderRadius: '28px', maxWidth: '520px', marginLeft: 'auto', marginRight: 'auto' }}>
+      {/* Specular caustic — simula luz en el borde superior del cristal */}
+      <div className="absolute top-0 left-8 right-8 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.75) 30%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.75) 70%, transparent)' }} />
+      <div className="absolute -top-3 left-1/3 right-1/3 h-6 pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(255,255,255,0.12), transparent 70%)', filter: 'blur(6px)' }} />
       <div className="flex items-center justify-around px-1 py-2">
         {NAV.map(item => {
           const active = pathname === item.href
