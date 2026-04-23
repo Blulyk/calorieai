@@ -46,16 +46,16 @@ export default function CalorieRing({ consumed, goal, size = 200 }: Props) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
           <span className="text-3xl font-bold text-zinc-100 tabular-nums">{Math.round(consumed)}</span>
-          <span className="text-xs text-zinc-500 font-medium mt-0.5">kcal eaten</span>
+          <span className="text-xs text-zinc-500 font-medium mt-0.5">kcal consumidas</span>
           <div className={`mt-1.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
             over ? 'text-red-400 bg-red-400/10' : 'text-brand-400 bg-brand-400/10'
           }`}>
-            {over ? `+${Math.round(-remaining)} over` : `${Math.round(remaining)} left`}
+            {over ? `+${Math.round(-remaining)} exceso` : `${Math.round(remaining)} restantes`}
           </div>
         </div>
       </div>
       <div className="mt-2 text-sm text-zinc-500">
-        Goal: <span className="font-semibold text-zinc-300">{goal} kcal</span>
+        Objetivo: <span className="font-semibold text-zinc-300">{goal} kcal</span>
       </div>
     </div>
   )

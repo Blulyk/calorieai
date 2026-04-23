@@ -22,10 +22,10 @@ export default function LoginPage() {
       })
       const text = await res.text()
       const data = text ? JSON.parse(text) : {}
-      if (!res.ok) { setError(data.error || 'Login failed'); setLoading(false); return }
+      if (!res.ok) { setError(data.error || 'Error al iniciar sesión'); setLoading(false); return }
       router.replace('/')
     } catch {
-      setError('Server error — please try again')
+      setError('Error del servidor — inténtalo de nuevo')
       setLoading(false)
     }
   }
@@ -41,24 +41,24 @@ export default function LoginPage() {
             <span className="text-4xl">🥗</span>
           </div>
           <h1 className="text-3xl font-bold text-zinc-100">CalorieAI</h1>
-          <p className="text-zinc-600 mt-2">Sign in to your account</p>
+          <p className="text-zinc-600 mt-2">Inicia sesión en tu cuenta</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-zinc-400 mb-2">Username or Email</label>
+            <label className="block text-sm font-semibold text-zinc-400 mb-2">Usuario o email</label>
             <input
               type="text"
               value={form.identifier}
               onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))}
-              placeholder="username or email"
+              placeholder="usuario o email"
               required
               autoComplete="username"
               className="w-full px-4 py-3.5 rounded-2xl bg-dark-surface border border-dark-border text-zinc-100 placeholder:text-zinc-700 focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-zinc-400 mb-2">Password</label>
+            <label className="block text-sm font-semibold text-zinc-400 mb-2">Contraseña</label>
             <input
               type="password"
               value={form.password}
@@ -81,13 +81,13 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl transition-all active:scale-95 shadow-glow mt-2"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Iniciando sesión…' : 'Iniciar sesión'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <Link href="/register" className="text-sm text-zinc-600 hover:text-brand-400 transition-colors">
-            New user? <span className="text-brand-500 font-semibold">Create account</span>
+            ¿Nuevo usuario? <span className="text-brand-500 font-semibold">Crear cuenta</span>
           </Link>
         </div>
       </div>

@@ -22,10 +22,10 @@ export default function RegisterPage() {
       })
       const text = await res.text()
       const data = text ? JSON.parse(text) : {}
-      if (!res.ok) { setError(data.error || 'Registration failed'); setLoading(false); return }
+      if (!res.ok) { setError(data.error || 'Error al registrarse'); setLoading(false); return }
       router.replace('/')
     } catch {
-      setError('Server error — please try again')
+      setError('Error del servidor — inténtalo de nuevo')
       setLoading(false)
     }
   }
@@ -39,15 +39,15 @@ export default function RegisterPage() {
           <div className="w-20 h-20 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-glow">
             <span className="text-4xl">🥗</span>
           </div>
-          <h1 className="text-2xl font-bold text-zinc-100">Create your account</h1>
-          <p className="text-zinc-600 mt-2 text-sm">Join CalorieAI and start tracking</p>
+          <h1 className="text-2xl font-bold text-zinc-100">Crea tu cuenta</h1>
+          <p className="text-zinc-600 mt-2 text-sm">Crea tu cuenta y empieza a registrar</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
           {[
-            { key: 'username', label: 'Username', type: 'text', placeholder: 'john_doe' },
+            { key: 'username', label: 'Nombre de usuario', type: 'text', placeholder: 'john_doe' },
             { key: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
-            { key: 'password', label: 'Password', type: 'password', placeholder: 'At least 6 characters' },
+            { key: 'password', label: 'Contraseña', type: 'password', placeholder: 'Mínimo 6 caracteres' },
           ].map(f => (
             <div key={f.key}>
               <label className="block text-sm font-semibold text-zinc-400 mb-2">{f.label}</label>
@@ -73,13 +73,13 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl transition-all active:scale-95 shadow-glow mt-2"
           >
-            {loading ? 'Creating account…' : 'Create account'}
+            {loading ? 'Creando cuenta…' : 'Crear cuenta'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <Link href="/login" className="text-sm text-zinc-600 hover:text-brand-400 transition-colors">
-            Already have an account? <span className="text-brand-500 font-semibold">Sign in</span>
+            ¿Ya tienes cuenta? <span className="text-brand-500 font-semibold">Iniciar sesión</span>
           </Link>
         </div>
       </div>

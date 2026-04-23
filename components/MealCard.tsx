@@ -47,7 +47,7 @@ export default function MealCard({ meal, onDelete }: Props) {
   })
 
   async function handleDelete() {
-    if (!confirm('Delete this meal?')) return
+    if (!confirm('¿Eliminar esta comida?')) return
     setDeleting(true)
     await fetch(`/api/meals/${meal.id}`, { method: 'DELETE' })
     onDelete?.(meal.id)
@@ -122,7 +122,7 @@ export default function MealCard({ meal, onDelete }: Props) {
             <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
-            {expanded ? 'Hide details' : `${meal.foods.length} item${meal.foods.length !== 1 ? 's' : ''}`}
+            {expanded ? 'Ocultar detalles' : `${meal.foods.length} ingrediente${meal.foods.length !== 1 ? 's' : ''}`}
           </button>
         )}
 
@@ -148,7 +148,7 @@ export default function MealCard({ meal, onDelete }: Props) {
           disabled={deleting}
           className="mt-3 text-xs text-zinc-700 hover:text-red-500 transition-colors"
         >
-          {deleting ? 'Deleting…' : 'Delete meal'}
+          {deleting ? 'Eliminando…' : 'Eliminar comida'}
         </button>
       </div>
     </div>

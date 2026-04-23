@@ -31,9 +31,9 @@ export default function Dashboard() {
 
   const greeting = () => {
     const h = new Date().getHours()
-    if (h < 12) return 'Good morning'
-    if (h < 18) return 'Good afternoon'
-    return 'Good evening'
+    if (h < 12) return 'Buenos días'
+    if (h < 18) return 'Buenas tardes'
+    return 'Buenas noches'
   }
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-dark-base flex items-center justify-center">
       <div className="text-center">
         <div className="w-12 h-12 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto shadow-glow-sm" />
-        <p className="text-sm text-zinc-600 mt-4">Loading your day…</p>
+        <p className="text-sm text-zinc-600 mt-4">Cargando…</p>
       </div>
     </div>
   )
@@ -83,7 +83,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-widest">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {new Date().toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
             <h1 className="text-xl font-bold text-zinc-100 mt-0.5">{greeting()}, {username} 👋</h1>
           </div>
@@ -104,8 +104,8 @@ export default function Dashboard() {
                 <span className="text-lg">🔑</span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-amber-400 text-sm">Add your Gemini API key</div>
-                <div className="text-amber-600 text-xs mt-0.5">Required to analyze food photos → Profile</div>
+                <div className="font-semibold text-amber-400 text-sm">Añade tu API key de Gemini</div>
+                <div className="text-amber-600 text-xs mt-0.5">Necesaria para analizar fotos → Perfil</div>
               </div>
               <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -125,7 +125,7 @@ export default function Dashboard() {
         {/* Week chart */}
         {weekData.length > 1 && (
           <div className="glass rounded-3xl p-5">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">This Week</p>
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Esta semana</p>
             <WeekChart data={weekData} goal={goal} />
           </div>
         )}
@@ -136,23 +136,23 @@ export default function Dashboard() {
         {/* Meals */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-zinc-100 text-lg">Today&apos;s Meals</h2>
+            <h2 className="font-bold text-zinc-100 text-lg">Comidas de hoy</h2>
             <Link href="/log" className="flex items-center gap-1.5 text-xs font-semibold text-brand-400 bg-brand-500/10 border border-brand-500/20 px-3 py-1.5 rounded-xl active:opacity-70 transition-opacity">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              Add meal
+              Añadir comida
             </Link>
           </div>
 
           {meals.length === 0 ? (
             <div className="glass rounded-3xl p-8 text-center">
               <div className="text-5xl mb-3">🍽️</div>
-              <p className="font-bold text-zinc-200 text-lg">No meals yet today</p>
-              <p className="text-sm text-zinc-600 mt-1 mb-5">Take a photo to log your first meal</p>
+              <p className="font-bold text-zinc-200 text-lg">Sin comidas hoy</p>
+              <p className="text-sm text-zinc-600 mt-1 mb-5">Haz una foto para registrar tu primera comida</p>
               <Link href="/log">
                 <button className="bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-2xl text-sm active:scale-95 transition-transform shadow-glow">
-                  Log a meal
+                  Registrar comida
                 </button>
               </Link>
             </div>

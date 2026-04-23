@@ -15,16 +15,16 @@ interface GoalResult {
 }
 
 const ACTIVITY_OPTIONS = [
-  { value: 'sedentary',   label: 'Sedentary',   desc: 'Desk job, no exercise' },
-  { value: 'light',       label: 'Light',        desc: '1–3 days/week' },
-  { value: 'moderate',    label: 'Moderate',     desc: '3–5 days/week' },
-  { value: 'active',      label: 'Active',       desc: '6–7 days/week' },
-  { value: 'very_active', label: 'Very Active',  desc: 'Athlete / physical job' },
+  { value: 'sedentary',   label: 'Sedentario',   desc: 'Trabajo de escritorio, sin ejercicio' },
+  { value: 'light',       label: 'Ligero',        desc: '1–3 días/semana' },
+  { value: 'moderate',    label: 'Moderado',     desc: '3–5 días/semana' },
+  { value: 'active',      label: 'Activo',       desc: '6–7 días/semana' },
+  { value: 'very_active', label: 'Muy activo',  desc: 'Deportista / trabajo físico' },
 ]
 const GOAL_OPTIONS = [
-  { value: 'lose',     label: 'Lose',     icon: '📉' },
-  { value: 'maintain', label: 'Maintain', icon: '⚖️' },
-  { value: 'gain',     label: 'Gain',     icon: '📈' },
+  { value: 'lose',     label: 'Perder',     icon: '📉' },
+  { value: 'maintain', label: 'Mantener', icon: '⚖️' },
+  { value: 'gain',     label: 'Ganar',     icon: '📈' },
 ]
 
 function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
@@ -77,7 +77,7 @@ export default function ProfilePage() {
     })
     setSaving(false)
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000) }
-    else setError('Failed to save')
+    else setError('Error al guardar')
   }
 
   async function calculateGoal() {
@@ -85,7 +85,7 @@ export default function ProfilePage() {
     try {
       const res  = await fetch('/api/profile/goal', { method: 'POST' })
       const text = await res.text()
-      if (!text) { setError('Server returned empty response'); setCalcLoading(false); return }
+      if (!text) { setError('El servidor no respondió'); setCalcLoading(false); return }
       const data = JSON.parse(text)
       setCalcLoading(false)
       if (!res.ok) { setError(data.error || 'Error'); return }
@@ -108,7 +108,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between" style={{ background: 'rgba(8,8,8,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid #111' }}>
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Profile</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">Perfil</h1>
           <p className="text-xs text-zinc-600 mt-0.5">@{username}</p>
         </div>
         <div className="w-11 h-11 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex items-center justify-center">
@@ -119,9 +119,9 @@ export default function ProfilePage() {
       <div className="px-4 py-5 space-y-4">
 
         {/* API Key */}
-        <Section icon="🔑" title="Gemini API Key">
+        <Section icon="🔑" title="Clave API de Gemini">
           <p className="text-xs text-zinc-600 mb-3">
-            Get yours free at <span className="text-brand-500 font-medium">aistudio.google.com</span> — required for photo analysis.
+            Consigue la tuya gratis en <span className="text-brand-500 font-medium">aistudio.google.com</span> — necesaria para analizar fotos.
           </p>
           <div className="relative">
             <input
@@ -141,19 +141,19 @@ export default function ProfilePage() {
           {settings.gemini_api_key && (
             <div className="flex items-center gap-1.5 mt-2">
               <div className="w-2 h-2 bg-brand-500 rounded-full shadow-glow-sm" />
-              <span className="text-xs text-brand-500 font-medium">API key configured</span>
+              <span className="text-xs text-brand-500 font-medium">Clave API configurada</span>
             </div>
           )}
         </Section>
 
         {/* Body metrics */}
-        <Section icon="📏" title="Body Metrics">
+        <Section icon="📏" title="Métricas corporales">
           <div className="grid grid-cols-2 gap-3">
             {[
-              { key: 'height_cm'     as const, label: 'Height',        unit: 'cm',  placeholder: '175' },
-              { key: 'weight_kg'     as const, label: 'Current weight', unit: 'kg', placeholder: '70'  },
-              { key: 'target_weight' as const, label: 'Target weight',  unit: 'kg', placeholder: '65'  },
-              { key: 'age'           as const, label: 'Age',            unit: 'yrs', placeholder: '25' },
+              { key: 'height_cm'     as const, label: 'Altura',        unit: 'cm',  placeholder: '175' },
+              { key: 'weight_kg'     as const, label: 'Peso actual', unit: 'kg', placeholder: '70'  },
+              { key: 'target_weight' as const, label: 'Peso objetivo',  unit: 'kg', placeholder: '65'  },
+              { key: 'age'           as const, label: 'Edad',            unit: 'años', placeholder: '25' },
             ].map(f => (
               <div key={f.key}>
                 <label className="block text-xs font-semibold text-zinc-600 mb-1.5">{f.label}</label>
@@ -172,9 +172,9 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-4">
-            <label className="block text-xs font-semibold text-zinc-600 mb-2">Gender</label>
+            <label className="block text-xs font-semibold text-zinc-600 mb-2">Sexo</label>
             <div className="flex gap-2">
-              {[{ v: 'male', l: '♂ Male' }, { v: 'female', l: '♀ Female' }, { v: 'other', l: '⚧ Other' }].map(g => (
+              {[{ v: 'male', l: '♂ Hombre' }, { v: 'female', l: '♀ Mujer' }, { v: 'other', l: '⚧ Otro' }].map(g => (
                 <button
                   key={g.v}
                   onClick={() => set('gender', g.v)}
@@ -192,7 +192,7 @@ export default function ProfilePage() {
         </Section>
 
         {/* Goal */}
-        <Section icon="🎯" title="Your Goal">
+        <Section icon="🎯" title="Tu objetivo">
           <div className="flex gap-2 mb-5">
             {GOAL_OPTIONS.map(g => (
               <button
@@ -210,7 +210,7 @@ export default function ProfilePage() {
             ))}
           </div>
 
-          <label className="block text-xs font-semibold text-zinc-600 mb-2">Activity Level</label>
+          <label className="block text-xs font-semibold text-zinc-600 mb-2">Nivel de actividad</label>
           <div className="space-y-2">
             {ACTIVITY_OPTIONS.map(a => (
               <button
@@ -243,8 +243,8 @@ export default function ProfilePage() {
             className="mt-5 w-full bg-indigo-500/15 border border-indigo-500/30 hover:bg-indigo-500/20 disabled:opacity-50 text-indigo-400 font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all"
           >
             {calcLoading
-              ? <><div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Calculating…</>
-              : <><span>🤖</span> Calculate my calorie goal</>
+              ? <><div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Calculando…</>
+              : <><span>🤖</span> Calcular mi objetivo calórico</>
             }
           </button>
 
@@ -252,9 +252,9 @@ export default function ProfilePage() {
             <div className="mt-4 bg-brand-500/5 border border-brand-500/15 rounded-2xl p-4 animate-slide-up space-y-4">
               <div className="grid grid-cols-3 gap-3 text-center">
                 {[
-                  { val: goalResult.calorie_goal, label: 'kcal/day', sub: 'Your goal' },
-                  { val: goalResult.bmi,           label: goalResult.bmi_category, sub: 'BMI' },
-                  { val: goalResult.tdee,          label: 'TDEE',    sub: 'Maintenance' },
+                  { val: goalResult.calorie_goal, label: 'kcal/día', sub: 'Tu objetivo' },
+                  { val: goalResult.bmi,           label: goalResult.bmi_category, sub: 'IMC' },
+                  { val: goalResult.tdee,          label: 'TDEE',    sub: 'Mantenimiento' },
                 ].map((s, i) => (
                   <div key={i} className="bg-dark-elevated rounded-xl p-3">
                     <div className="text-lg font-bold text-brand-400">{s.val}</div>
@@ -265,9 +265,9 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
-                  { g: goalResult.protein_goal, l: 'Protein', c: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-                  { g: goalResult.carbs_goal,   l: 'Carbs',   c: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
-                  { g: goalResult.fat_goal,     l: 'Fat',     c: 'text-red-400 bg-red-500/10 border-red-500/20' },
+                  { g: goalResult.protein_goal, l: 'Proteína', c: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                  { g: goalResult.carbs_goal,   l: 'Carbos',   c: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
+                  { g: goalResult.fat_goal,     l: 'Grasas',     c: 'text-red-400 bg-red-500/10 border-red-500/20' },
                 ].map(m => (
                   <div key={m.l} className={`rounded-xl p-2.5 border ${m.c}`}>
                     <div className="font-bold text-sm">{m.g}g</div>
@@ -278,7 +278,7 @@ export default function ProfilePage() {
 
               {goalResult.estimated_weeks_to_goal && (
                 <div className="text-center text-sm text-brand-400 font-medium">
-                  ~{goalResult.estimated_weeks_to_goal} weeks to reach your goal
+                  ~{goalResult.estimated_weeks_to_goal} semanas para alcanzar tu objetivo
                 </div>
               )}
 
@@ -297,7 +297,7 @@ export default function ProfilePage() {
 
           {settings.calorie_goal && !goalResult && (
             <div className="mt-3 text-center text-sm text-zinc-600">
-              Current goal: <span className="font-bold text-zinc-300">{settings.calorie_goal} kcal/day</span>
+              Objetivo actual: <span className="font-bold text-zinc-300">{settings.calorie_goal} kcal/día</span>
             </div>
           )}
         </Section>
@@ -313,7 +313,7 @@ export default function ProfilePage() {
           disabled={saving}
           className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl active:scale-95 transition-all shadow-glow"
         >
-          {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save changes'}
+          {saving ? 'Guardando…' : saved ? '✓ Guardado' : 'Guardar cambios'}
         </button>
 
         <button
@@ -321,7 +321,7 @@ export default function ProfilePage() {
           disabled={loggingOut}
           className="w-full py-3 rounded-2xl text-red-500 font-semibold text-sm border border-red-500/20 hover:bg-red-500/5 transition-colors active:scale-95"
         >
-          {loggingOut ? 'Signing out…' : 'Sign out'}
+          {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </button>
       </div>
     </div>

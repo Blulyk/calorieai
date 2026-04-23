@@ -16,10 +16,10 @@ interface AnalysisResult {
 }
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
-  { value: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { value: 'lunch',     label: 'Lunch',     icon: '☀️'  },
-  { value: 'dinner',    label: 'Dinner',    icon: '🌙'  },
-  { value: 'snack',     label: 'Snack',     icon: '🍎'  },
+  { value: 'breakfast', label: 'Desayuno', icon: '🌅' },
+  { value: 'lunch',     label: 'Almuerzo',     icon: '☀️'  },
+  { value: 'dinner',    label: 'Cena',    icon: '🌙'  },
+  { value: 'snack',     label: 'Tentempié',     icon: '🍎'  },
 ]
 
 function guessCurrentMeal(): MealType {
@@ -44,7 +44,7 @@ export default function LogPage() {
   const [saving,   setSaving]   = useState(false)
 
   const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith('image/')) { setError('Please select an image'); return }
+    if (!f.type.startsWith('image/')) { setError('Selecciona una imagen'); return }
     setFile(f); setResult(null); setError('')
     const reader = new FileReader()
     reader.onloadend = () => setPreview(reader.result as string)
@@ -60,14 +60,14 @@ export default function LogPage() {
       form.append('meal_type', mealType)
       const res  = await fetch('/api/analyze', { method: 'POST', body: form })
       const text = await res.text()
-      if (!text) { setError('Server error — check your API key in Profile'); setAnalyzing(false); return }
+      if (!text) { setError('Error del servidor — comprueba tu API key en Perfil'); setAnalyzing(false); return }
       const data = JSON.parse(text)
       setAnalyzing(false)
-      if (!res.ok) { setError(data.error || 'Analysis failed'); return }
+      if (!res.ok) { setError(data.error || 'Análisis fallido'); return }
       setResult(data.analysis)
     } catch (e: unknown) {
       setAnalyzing(false)
-      setError(e instanceof Error ? e.message : 'Analysis failed')
+      setError(e instanceof Error ? e.message : 'Análisis fallido')
     }
   }
 
@@ -79,7 +79,7 @@ export default function LogPage() {
     form.append('meal_type', mealType)
     const res = await fetch('/api/analyze', { method: 'POST', body: form })
     if (res.ok) router.replace('/')
-    else { setSaving(false); setError('Failed to save') }
+    else { setSaving(false); setError('Error al guardar') }
   }
 
   const CONF_STYLE: Record<string, string> = {
@@ -97,7 +97,8 @@ export default function LogPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="text-xl font-bold text-zinc-100">Log a Meal</h1>
+        <h1 className="text-xl font-bold text-zinc-100">Registrar comida</h1>
+
       </div>
 
       <div className="px-4 py-5 space-y-4">
@@ -130,13 +131,13 @@ export default function LogPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
               </div>
-              <p className="font-semibold text-zinc-300">Upload a food photo</p>
-              <p className="text-sm text-zinc-600 mt-1">Tap to choose from gallery</p>
+              <p className="font-semibold text-zinc-300">Subir foto de comida</p>
+              <p className="text-sm text-zinc-600 mt-1">Toca para elegir de la galería</p>
             </div>
 
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-dark-border" />
-              <span className="text-xs text-zinc-700 font-medium">OR</span>
+              <span className="text-xs text-zinc-700 font-medium">O</span>
               <div className="flex-1 h-px bg-dark-border" />
             </div>
 
@@ -148,11 +149,22 @@ export default function LogPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
               </svg>
-              Take a photo
+              Hacer foto
             </button>
 
             <input ref={fileRef}   type="file" accept="image/*"             className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+
+            <button
+              onClick={() => router.push('/recetario')}
+              className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-brand-400 font-semibold text-sm active:scale-95 transition-transform border border-brand-500/25"
+              style={{ background: 'rgba(34,197,94,0.06)' }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Añadir del recetario
+            </button>
           </div>
         ) : (
           <>
@@ -175,9 +187,9 @@ export default function LogPage() {
                 className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-glow disabled:opacity-60"
               >
                 {analyzing ? (
-                  <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing with Gemini AI…</>
+                  <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analizando con IA…</>
                 ) : (
-                  <><span className="text-lg">🤖</span> Analyze food</>
+                  <><span className="text-lg">🤖</span> Analizar comida</>
                 )}
               </button>
             )}
@@ -187,17 +199,17 @@ export default function LogPage() {
                 {/* Result header */}
                 <div className="p-5 border-b border-dark-border" style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03))' }}>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-zinc-100 font-bold text-lg">AI Analysis</h2>
+                    <h2 className="text-zinc-100 font-bold text-lg">Análisis IA</h2>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 bg-dark-elevated border-dark-border'}`}>
-                      {result.confidence} confidence
+                      {result.confidence === 'high' ? 'alta' : result.confidence === 'medium' ? 'media' : 'baja'} confianza
                     </span>
                   </div>
                   <div className="grid grid-cols-4 gap-3">
                     {[
-                      { label: 'Calories', value: Math.round(result.total_calories), unit: 'kcal', highlight: true },
-                      { label: 'Protein',  value: Math.round(result.total_protein),  unit: 'g' },
-                      { label: 'Carbs',    value: Math.round(result.total_carbs),    unit: 'g' },
-                      { label: 'Fat',      value: Math.round(result.total_fat),      unit: 'g' },
+                      { label: 'Calorías', value: Math.round(result.total_calories), unit: 'kcal', highlight: true },
+                      { label: 'Proteína',  value: Math.round(result.total_protein),  unit: 'g' },
+                      { label: 'Carbos',    value: Math.round(result.total_carbs),    unit: 'g' },
+                      { label: 'Grasas',      value: Math.round(result.total_fat),      unit: 'g' },
                     ].map(s => (
                       <div key={s.label} className="text-center">
                         <div className={`text-xl font-bold ${s.highlight ? 'text-brand-400' : 'text-zinc-200'}`}>{s.value}</div>
@@ -232,14 +244,14 @@ export default function LogPage() {
                     onClick={() => { setResult(null); setPreview(null); setFile(null) }}
                     className="flex-1 py-3 rounded-2xl border border-dark-border text-zinc-400 font-semibold text-sm active:scale-95 transition-transform"
                   >
-                    Retake
+                    Repetir
                   </button>
                   <button
                     onClick={save}
                     disabled={saving}
                     className="flex-1 py-3 rounded-2xl bg-brand-500 text-white font-semibold text-sm active:scale-95 transition-transform shadow-glow disabled:opacity-60"
                   >
-                    {saving ? 'Saving…' : '✓ Save meal'}
+                    {saving ? 'Guardando…' : '✓ Guardar comida'}
                   </button>
                 </div>
               </div>

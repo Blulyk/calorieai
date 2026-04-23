@@ -67,6 +67,26 @@ function initSchema(db: DatabaseSync) {
       glasses   INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (user_id, date)
     );
+
+    CREATE TABLE IF NOT EXISTS recipes (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name         TEXT NOT NULL,
+      description  TEXT,
+      ingredients  TEXT NOT NULL DEFAULT '[]',
+      instructions TEXT,
+      foods        TEXT NOT NULL DEFAULT '[]',
+      calories     REAL NOT NULL DEFAULT 0,
+      protein      REAL NOT NULL DEFAULT 0,
+      carbs        REAL NOT NULL DEFAULT 0,
+      fat          REAL NOT NULL DEFAULT 0,
+      fiber        REAL NOT NULL DEFAULT 0,
+      servings     INTEGER NOT NULL DEFAULT 1,
+      photo_path   TEXT,
+      created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_recipes_user ON recipes(user_id);
   `)
 }
 
@@ -182,6 +202,27 @@ export function setWater(userId: string, date: string, glasses: number) {
   `).run(userId, date, glasses)
 }
 
+// ─── Recipe queries ────────────────────────────────────────────────────────────
+
+export function getRecipes(userId: string) {
+  return getDb().prepare('SELECT * FROM recipes WHERE user_id = ? ORDER BY created_at DESC').all(userId) as unknown as Recipe[]
+}
+export function getRecipeById(id: string, userId: string) {
+  return getDb().prepare('SELECT * FROM recipes WHERE id = ? AND user_id = ?').get(id, userId) as Recipe | undefined
+}
+export function createRecipe(recipe: Omit<Recipe, 'created_at' | 'updated_at'>) {
+  getDb().prepare(`
+    INSERT INTO recipes (id, user_id, name, description, ingredients, instructions, foods, calories, protein, carbs, fat, fiber, servings, photo_path)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(recipe.id, recipe.user_id, recipe.name, recipe.description ?? null, recipe.ingredients, recipe.instructions ?? null, recipe.foods, recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber, recipe.servings, recipe.photo_path ?? null)
+}
+export function updateRecipePhoto(id: string, userId: string, photoPath: string) {
+  getDb().prepare('UPDATE recipes SET photo_path = ?, updated_at = unixepoch() WHERE id = ? AND user_id = ?').run(photoPath, id, userId)
+}
+export function deleteRecipe(id: string, userId: string) {
+  getDb().prepare('DELETE FROM recipes WHERE id = ? AND user_id = ?').run(id, userId)
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface User {
@@ -229,4 +270,23 @@ export interface DailyStats {
   carbs: number
   fat: number
   fiber: number
+}
+
+export interface Recipe {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  ingredients: string  // JSON array of strings
+  instructions: string | null
+  foods: string  // JSON array of FoodItem
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  servings: number
+  photo_path: string | null
+  created_at: number
+  updated_at: number
 }
