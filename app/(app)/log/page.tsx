@@ -7,30 +7,19 @@ import Image from 'next/image'
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
 interface FoodItem {
-  name: string
-  portion: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  fiber: number
+  name: string; portion: string; calories: number
+  protein: number; carbs: number; fat: number; fiber: number
 }
-
 interface AnalysisResult {
-  foods: FoodItem[]
-  total_calories: number
-  total_protein: number
-  total_carbs: number
-  total_fat: number
-  confidence: string
-  notes: string
+  foods: FoodItem[]; total_calories: number; total_protein: number
+  total_carbs: number; total_fat: number; confidence: string; notes: string
 }
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
   { value: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { value: 'lunch',     label: 'Lunch',     icon: '☀️' },
-  { value: 'dinner',    label: 'Dinner',    icon: '🌙' },
-  { value: 'snack',     label: 'Snack',     icon: '🍎' },
+  { value: 'lunch',     label: 'Lunch',     icon: '☀️'  },
+  { value: 'dinner',    label: 'Dinner',    icon: '🌙'  },
+  { value: 'snack',     label: 'Snack',     icon: '🍎'  },
 ]
 
 function guessCurrentMeal(): MealType {
@@ -43,41 +32,33 @@ function guessCurrentMeal(): MealType {
 
 export default function LogPage() {
   const router = useRouter()
-  const fileRef = useRef<HTMLInputElement>(null)
+  const fileRef   = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
 
-  const [preview, setPreview] = useState<string | null>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [preview,  setPreview]  = useState<string | null>(null)
+  const [file,     setFile]     = useState<File | null>(null)
   const [mealType, setMealType] = useState<MealType>(guessCurrentMeal())
   const [analyzing, setAnalyzing] = useState(false)
-  const [result, setResult] = useState<AnalysisResult | null>(null)
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [result,   setResult]   = useState<AnalysisResult | null>(null)
+  const [error,    setError]    = useState('')
+  const [saving,   setSaving]   = useState(false)
 
   const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith('image/')) { setError('Please select an image file'); return }
-    setFile(f)
-    setResult(null)
-    setError('')
+    if (!f.type.startsWith('image/')) { setError('Please select an image'); return }
+    setFile(f); setResult(null); setError('')
     const reader = new FileReader()
     reader.onloadend = () => setPreview(reader.result as string)
     reader.readAsDataURL(f)
   }, [])
 
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (f) handleFile(f)
-  }
-
   async function analyze() {
     if (!file) return
-    setAnalyzing(true)
-    setError('')
+    setAnalyzing(true); setError('')
     try {
       const form = new FormData()
       form.append('image', file)
       form.append('meal_type', mealType)
-      const res = await fetch('/api/analyze', { method: 'POST', body: form })
+      const res  = await fetch('/api/analyze', { method: 'POST', body: form })
       const text = await res.text()
       if (!text) { setError('Server error — check your API key in Profile'); setAnalyzing(false); return }
       const data = JSON.parse(text)
@@ -91,7 +72,7 @@ export default function LogPage() {
   }
 
   async function save() {
-    if (!file || !result) return
+    if (!file) return
     setSaving(true)
     const form = new FormData()
     form.append('image', file)
@@ -101,22 +82,22 @@ export default function LogPage() {
     else { setSaving(false); setError('Failed to save') }
   }
 
-  const CONFIDENCE_COLOR: Record<string, string> = {
-    high: 'text-brand-600 bg-brand-50',
-    medium: 'text-amber-600 bg-amber-50',
-    low: 'text-red-600 bg-red-50',
+  const CONF_STYLE: Record<string, string> = {
+    high:   'text-brand-400 bg-brand-500/10 border-brand-500/20',
+    medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    low:    'text-red-400   bg-red-500/10   border-red-500/20',
   }
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-lg mx-auto bg-dark-base min-h-screen">
       {/* Header */}
-      <div className="bg-white px-5 pt-12 pb-4 sticky top-0 z-10 shadow-card flex items-center gap-3">
-        <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-surface-tertiary flex items-center justify-center active:scale-95">
-          <svg className="w-5 h-5 text-ink" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center gap-3" style={{ background: 'rgba(8,8,8,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid #111' }}>
+        <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-dark-surface border border-dark-border flex items-center justify-center active:scale-90 transition-transform">
+          <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="text-xl font-bold text-ink">Log a Meal</h1>
+        <h1 className="text-xl font-bold text-zinc-100">Log a Meal</h1>
       </div>
 
       <div className="px-4 py-5 space-y-4">
@@ -126,10 +107,10 @@ export default function LogPage() {
             <button
               key={t.value}
               onClick={() => setMealType(t.value)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0 border ${
                 mealType === t.value
-                  ? 'bg-brand-500 text-white shadow-card-lg'
-                  : 'bg-white text-ink-secondary shadow-card'
+                  ? 'bg-brand-500/15 border-brand-500/30 text-brand-400 shadow-glow-sm'
+                  : 'bg-dark-surface border-dark-border text-zinc-500'
               }`}
             >
               <span>{t.icon}</span> {t.label}
@@ -139,29 +120,29 @@ export default function LogPage() {
 
         {/* Upload area */}
         {!preview ? (
-          <div className="bg-white rounded-3xl shadow-card p-8">
+          <div className="bg-dark-surface border border-dark-border rounded-3xl p-6">
             <div
               onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-surface-tertiary rounded-2xl p-8 text-center cursor-pointer hover:border-brand-300 transition-colors active:bg-brand-50"
+              className="border-2 border-dashed border-dark-border rounded-2xl p-8 text-center cursor-pointer hover:border-brand-500/30 transition-colors active:bg-dark-elevated"
             >
-              <div className="w-16 h-16 bg-brand-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-brand-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-brand-500/60" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
               </div>
-              <p className="font-semibold text-ink">Upload a food photo</p>
-              <p className="text-sm text-ink-secondary mt-1">Tap to choose from gallery</p>
+              <p className="font-semibold text-zinc-300">Upload a food photo</p>
+              <p className="text-sm text-zinc-600 mt-1">Tap to choose from gallery</p>
             </div>
 
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px bg-surface-tertiary" />
-              <span className="text-xs text-ink-tertiary font-medium">OR</span>
-              <div className="flex-1 h-px bg-surface-tertiary" />
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-dark-border" />
+              <span className="text-xs text-zinc-700 font-medium">OR</span>
+              <div className="flex-1 h-px bg-dark-border" />
             </div>
 
             <button
               onClick={() => cameraRef.current?.click()}
-              className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-card-lg"
+              className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-glow"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
@@ -170,17 +151,16 @@ export default function LogPage() {
               Take a photo
             </button>
 
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFileChange} />
+            <input ref={fileRef}   type="file" accept="image/*"             className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
         ) : (
           <>
-            {/* Photo preview */}
-            <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden shadow-card-lg">
+            <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden border border-dark-border">
               <Image src={preview} alt="Food preview" fill className="object-cover" />
               <button
                 onClick={() => { setPreview(null); setFile(null); setResult(null) }}
-                className="absolute top-3 right-3 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
+                className="absolute top-3 right-3 w-8 h-8 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/10"
               >
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -192,86 +172,74 @@ export default function LogPage() {
               <button
                 onClick={analyze}
                 disabled={analyzing}
-                className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-card-lg disabled:opacity-70"
+                className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-glow disabled:opacity-60"
               >
                 {analyzing ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Analyzing with Gemini AI…
-                  </>
+                  <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing with Gemini AI…</>
                 ) : (
-                  <>
-                    <span className="text-lg">🤖</span>
-                    Analyze food
-                  </>
+                  <><span className="text-lg">🤖</span> Analyze food</>
                 )}
               </button>
             )}
 
-            {/* Analysis result */}
             {result && (
-              <div className="bg-white rounded-3xl shadow-card overflow-hidden animate-slide-up">
-                <div className="bg-brand-500 px-5 py-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-white font-bold text-lg">AI Analysis</h2>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${CONFIDENCE_COLOR[result.confidence] || 'text-ink bg-white'}`}>
+              <div className="bg-dark-surface border border-dark-border rounded-3xl overflow-hidden animate-slide-up">
+                {/* Result header */}
+                <div className="p-5 border-b border-dark-border" style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03))' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-zinc-100 font-bold text-lg">AI Analysis</h2>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 bg-dark-elevated border-dark-border'}`}>
                       {result.confidence} confidence
                     </span>
                   </div>
-                  <div className="flex gap-4 mt-3">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">{Math.round(result.total_calories)}</div>
-                      <div className="text-white/70 text-xs">kcal</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-white">{Math.round(result.total_protein)}g</div>
-                      <div className="text-white/70 text-xs">protein</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-white">{Math.round(result.total_carbs)}g</div>
-                      <div className="text-white/70 text-xs">carbs</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-white">{Math.round(result.total_fat)}g</div>
-                      <div className="text-white/70 text-xs">fat</div>
-                    </div>
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'Calories', value: Math.round(result.total_calories), unit: 'kcal', highlight: true },
+                      { label: 'Protein',  value: Math.round(result.total_protein),  unit: 'g' },
+                      { label: 'Carbs',    value: Math.round(result.total_carbs),    unit: 'g' },
+                      { label: 'Fat',      value: Math.round(result.total_fat),      unit: 'g' },
+                    ].map(s => (
+                      <div key={s.label} className="text-center">
+                        <div className={`text-xl font-bold ${s.highlight ? 'text-brand-400' : 'text-zinc-200'}`}>{s.value}</div>
+                        <div className="text-xs text-zinc-600">{s.unit}</div>
+                        <div className="text-xs text-zinc-700 mt-0.5">{s.label}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
+                {/* Food items */}
                 <div className="p-4 space-y-2">
                   {result.foods.map((f, i) => (
-                    <div key={i} className="flex justify-between items-start py-2 border-b border-surface-tertiary last:border-0">
+                    <div key={i} className="flex justify-between items-start py-2.5 border-b border-dark-border last:border-0">
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-ink text-sm">{f.name}</div>
-                        <div className="text-xs text-ink-secondary mt-0.5">{f.portion}</div>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-xs text-indigo-600 font-medium">P {f.protein}g</span>
-                          <span className="text-xs text-amber-600 font-medium">C {f.carbs}g</span>
-                          <span className="text-xs text-red-500 font-medium">F {f.fat}g</span>
+                        <div className="font-semibold text-zinc-200 text-sm">{f.name}</div>
+                        <div className="text-xs text-zinc-600 mt-0.5">{f.portion}</div>
+                        <div className="flex gap-2 mt-1.5">
+                          <span className="text-xs text-indigo-400 font-medium">P {f.protein}g</span>
+                          <span className="text-xs text-orange-400 font-medium">C {f.carbs}g</span>
+                          <span className="text-xs text-red-400 font-medium">F {f.fat}g</span>
                         </div>
                       </div>
-                      <div className="text-sm font-bold text-ink ml-3">{f.calories} kcal</div>
+                      <div className="text-sm font-bold text-zinc-300 ml-3">{f.calories} kcal</div>
                     </div>
                   ))}
-
-                  {result.notes && (
-                    <p className="text-xs text-ink-secondary italic pt-1">{result.notes}</p>
-                  )}
+                  {result.notes && <p className="text-xs text-zinc-600 italic pt-1">{result.notes}</p>}
                 </div>
 
                 <div className="p-4 pt-0 flex gap-3">
                   <button
                     onClick={() => { setResult(null); setPreview(null); setFile(null) }}
-                    className="flex-1 py-3 rounded-2xl border border-surface-tertiary text-ink-secondary font-semibold text-sm active:scale-95 transition-transform"
+                    className="flex-1 py-3 rounded-2xl border border-dark-border text-zinc-400 font-semibold text-sm active:scale-95 transition-transform"
                   >
                     Retake
                   </button>
                   <button
                     onClick={save}
                     disabled={saving}
-                    className="flex-1 py-3 rounded-2xl bg-brand-500 text-white font-semibold text-sm active:scale-95 transition-transform shadow-card-lg disabled:opacity-70"
+                    className="flex-1 py-3 rounded-2xl bg-brand-500 text-white font-semibold text-sm active:scale-95 transition-transform shadow-glow disabled:opacity-60"
                   >
-                    {saving ? 'Saving…' : 'Save meal ✓'}
+                    {saving ? 'Saving…' : '✓ Save meal'}
                   </button>
                 </div>
               </div>
@@ -280,7 +248,7 @@ export default function LogPage() {
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl px-4 py-3">
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl px-4 py-3">
             {error}
           </div>
         )}

@@ -10,15 +10,22 @@
 
   html {
     scroll-behavior: smooth;
+    background: #0a0a12;
   }
 
   body {
+    background: #0a0a12;
+    color: #f4f4f5;
     overscroll-behavior: none;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34,197,94,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 85% 85%, rgba(99,102,241,0.05) 0%, transparent 60%);
+    background-attachment: fixed;
   }
 
   input, textarea, select {
-    @apply outline-none;
-    font-size: 16px; /* prevent zoom on iOS */
+    font-size: 16px;
+    color-scheme: dark;
   }
 }
 
@@ -26,33 +33,49 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-
   .pb-safe {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
-
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
-
   .scrollbar-none {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+  .glass {
+    background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .glass-strong {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    backdrop-filter: blur(60px) saturate(200%);
+    -webkit-backdrop-filter: blur(60px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 32px rgba(0,0,0,0.35);
+  }
+  .glass-nav {
+    background: linear-gradient(180deg, rgba(22,22,38,0.88) 0%, rgba(12,12,22,0.94) 100%);
+    backdrop-filter: blur(48px) saturate(200%);
+    -webkit-backdrop-filter: blur(48px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.13);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  }
 }
 
-/* Loading skeleton animation */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, #14142a 25%, #1e1e38 50%, #14142a 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

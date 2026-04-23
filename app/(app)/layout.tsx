@@ -2,7 +2,7 @@ import BottomNav from '@/components/BottomNav'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-surface-secondary pb-24">
+    <div className="min-h-screen pb-36">
       {children}
       <BottomNav />
     </div>

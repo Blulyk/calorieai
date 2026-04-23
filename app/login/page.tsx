@@ -25,19 +25,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-brand-500 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-float">
+    <div className="min-h-screen bg-dark-base flex flex-col items-center justify-center p-6">
+      {/* Background glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-sm relative">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-glow">
             <span className="text-4xl">🥗</span>
           </div>
-          <h1 className="text-3xl font-bold text-ink">CalorieAI</h1>
-          <p className="text-ink-secondary mt-1">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-zinc-100">CalorieAI</h1>
+          <p className="text-zinc-600 mt-2">Sign in to your account</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-ink mb-1.5">Username or Email</label>
+            <label className="block text-sm font-semibold text-zinc-400 mb-2">Username or Email</label>
             <input
               type="text"
               value={form.identifier}
@@ -45,11 +48,11 @@ export default function LoginPage() {
               placeholder="username or email"
               required
               autoComplete="username"
-              className="w-full px-4 py-3 rounded-2xl border border-surface-tertiary bg-white text-ink placeholder:text-ink-tertiary focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
+              className="w-full px-4 py-3.5 rounded-2xl bg-dark-surface border border-dark-border text-zinc-100 placeholder:text-zinc-700 focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-ink mb-1.5">Password</label>
+            <label className="block text-sm font-semibold text-zinc-400 mb-2">Password</label>
             <input
               type="password"
               value={form.password}
@@ -57,12 +60,12 @@ export default function LoginPage() {
               placeholder="••••••••"
               required
               autoComplete="current-password"
-              className="w-full px-4 py-3 rounded-2xl border border-surface-tertiary bg-white text-ink placeholder:text-ink-tertiary focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
+              className="w-full px-4 py-3.5 rounded-2xl bg-dark-surface border border-dark-border text-zinc-100 placeholder:text-zinc-700 focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 outline-none transition-all"
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl px-4 py-3">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl px-4 py-3">
               {error}
             </div>
           )}
@@ -70,15 +73,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white font-semibold py-3.5 rounded-2xl transition-all active:scale-95 shadow-card-lg"
+            className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl transition-all active:scale-95 shadow-glow mt-2"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <Link href="/register" className="text-sm text-brand-600 font-semibold hover:underline">
-            New user? Create account
+          <Link href="/register" className="text-sm text-zinc-600 hover:text-brand-400 transition-colors">
+            New user? <span className="text-brand-500 font-semibold">Create account</span>
           </Link>
         </div>
       </div>

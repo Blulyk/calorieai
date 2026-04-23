@@ -32,60 +32,45 @@ export default function SetupPage() {
   }
 
   if (checking) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-3 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-dark-base flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-brand-500 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-float">
+    <div className="min-h-screen bg-dark-base flex flex-col items-center justify-center p-6">
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-sm relative">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-glow">
             <span className="text-4xl">🥗</span>
           </div>
-          <h1 className="text-3xl font-bold text-ink">Welcome to CalorieAI</h1>
-          <p className="text-ink-secondary mt-2">Create your admin account to get started</p>
+          <h1 className="text-3xl font-bold text-zinc-100">Welcome to CalorieAI</h1>
+          <p className="text-zinc-600 mt-2">Create your account to get started</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-ink mb-1.5">Username</label>
-            <input
-              type="text"
-              value={form.username}
-              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-              placeholder="john_doe"
-              required
-              className="w-full px-4 py-3 rounded-2xl border border-surface-tertiary bg-white text-ink placeholder:text-ink-tertiary focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink mb-1.5">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              placeholder="you@example.com"
-              required
-              className="w-full px-4 py-3 rounded-2xl border border-surface-tertiary bg-white text-ink placeholder:text-ink-tertiary focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-ink mb-1.5">Password</label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="At least 6 characters"
-              required
-              minLength={6}
-              className="w-full px-4 py-3 rounded-2xl border border-surface-tertiary bg-white text-ink placeholder:text-ink-tertiary focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
-            />
-          </div>
+          {[
+            { key: 'username', label: 'Username', type: 'text', placeholder: 'john_doe' },
+            { key: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
+            { key: 'password', label: 'Password', type: 'password', placeholder: 'At least 6 characters' },
+          ].map(f => (
+            <div key={f.key}>
+              <label className="block text-sm font-semibold text-zinc-400 mb-2">{f.label}</label>
+              <input
+                type={f.type}
+                value={form[f.key as keyof typeof form]}
+                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                placeholder={f.placeholder}
+                required
+                className="w-full px-4 py-3.5 rounded-2xl bg-dark-surface border border-dark-border text-zinc-100 placeholder:text-zinc-700 focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 outline-none transition-all"
+              />
+            </div>
+          ))}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl px-4 py-3">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl px-4 py-3">
               {error}
             </div>
           )}
@@ -93,15 +78,11 @@ export default function SetupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white font-semibold py-3.5 rounded-2xl transition-all active:scale-95 shadow-card-lg"
+            className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl transition-all active:scale-95 shadow-glow mt-2"
           >
-            {loading ? 'Creating account…' : 'Create account & start'}
+            {loading ? 'Creating account…' : 'Get started'}
           </button>
         </form>
-
-        <p className="text-center text-sm text-ink-tertiary mt-6">
-          Other users can register after setup is complete.
-        </p>
       </div>
     </div>
   )

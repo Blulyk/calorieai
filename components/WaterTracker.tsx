@@ -27,41 +27,52 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
     onChange?.(next)
   }
 
+  const pct = Math.min(100, (current / GOAL) * 100)
+
   return (
-    <div className="bg-white rounded-2xl shadow-card p-4">
+    <div className="bg-dark-surface border border-dark-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg">💧</span>
-          <span className="font-semibold text-ink">Water</span>
+          <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center">
+            <span className="text-base">💧</span>
+          </div>
+          <span className="font-semibold text-zinc-200">Water</span>
         </div>
-        <span className="text-sm text-ink-secondary font-medium">
-          {current}/{GOAL} glasses {saving && <span className="text-ink-tertiary">·saving</span>}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-zinc-400 font-medium">{current}/{GOAL}</span>
+          {saving && <span className="text-xs text-zinc-700">saving…</span>}
+        </div>
       </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 bg-dark-elevated rounded-full overflow-hidden mb-3">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)', boxShadow: '0 0 8px #3b82f640' }}
+        />
+      </div>
+
       <div className="flex gap-1.5 flex-wrap">
-        {Array.from({ length: GOAL }).map((_, i) => (
+        {Array.from({ length: Math.max(GOAL, current) }).map((_, i) => (
           <button
             key={i}
             onClick={() => update(i < current ? i : i + 1)}
-            className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg transition-all active:scale-90 ${
-              i < current ? 'bg-blue-100' : 'bg-surface-tertiary opacity-40'
+            className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm transition-all active:scale-90 ${
+              i < current
+                ? 'bg-blue-500/20 border border-blue-500/30'
+                : 'bg-dark-elevated border border-dark-border opacity-30'
             }`}
           >
             💧
           </button>
         ))}
-        {current > GOAL && Array.from({ length: current - GOAL }).map((_, i) => (
-          <button key={`extra-${i}`} onClick={() => update(current - 1)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-lg bg-blue-200 active:scale-90">
-            💧
-          </button>
-        ))}
       </div>
+
       <div className="flex justify-between mt-3">
-        <button onClick={() => update(current - 1)} className="text-xs text-ink-tertiary px-2 py-1 rounded-lg hover:bg-surface-tertiary transition-colors">
+        <button onClick={() => update(current - 1)} className="text-xs text-zinc-600 hover:text-zinc-400 px-2 py-1 rounded-lg transition-colors">
           − Remove
         </button>
-        <button onClick={() => update(current + 1)} className="text-xs text-brand-600 font-semibold px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors">
+        <button onClick={() => update(current + 1)} className="text-xs text-brand-500 font-semibold px-2 py-1 rounded-lg hover:bg-brand-500/10 transition-colors">
           + Add glass
         </button>
       </div>
