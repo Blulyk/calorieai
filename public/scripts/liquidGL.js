@@ -654,7 +654,9 @@
       let overscrollY = 0;
       let overscrollX = 0;
 
-      if (window.visualViewport) {
+      const isFixed = window.getComputedStyle(lens.el).position === 'fixed';
+
+      if (window.visualViewport && !isFixed) {
         overscrollX = window.visualViewport.offsetLeft;
         overscrollY = window.visualViewport.offsetTop;
       }
@@ -668,8 +670,9 @@
       gl.viewport(x, y, w, h);
       gl.uniform2f(this.u.res, w, h);
 
-      const docX = rect.left - this.snapshotTarget.getBoundingClientRect().left;
-      const docY = rect.top - this.snapshotTarget.getBoundingClientRect().top;
+      const snapshotBCR = this.snapshotTarget.getBoundingClientRect();
+      const docX = isFixed ? rect.left : (rect.left - snapshotBCR.left);
+      const docY = isFixed ? rect.top : (rect.top - snapshotBCR.top);
       const leftUV = (docX * this.scaleFactor) / this.textureWidth;
       const topUV = (docY * this.scaleFactor) / this.textureHeight;
       const wUV = (rect.width * this.scaleFactor) / this.textureWidth;
