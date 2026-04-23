@@ -1,0 +1,21 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: calorieai_web_1
+      APP_PORT: 3000
+
+  web:
+    image: blulyk/calorieai:latest
+    restart: on-failure
+    stop_grace_period: 1m
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+      - ${APP_DATA_DIR}/uploads:/app/public/uploads
+    environment:
+      NODE_ENV: production
+      DB_PATH: /data
+      JWT_SECRET: ${APP_PASSWORD}
+    ports:
+      - "3005:3000"

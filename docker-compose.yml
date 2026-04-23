@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  calorieai:
+    build: .
+    container_name: calorieai
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - calorieai_data:/data
+      - calorieai_uploads:/app/public/uploads
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/data
+      # Change this secret before deploying!
+      - JWT_SECRET=change-this-to-a-random-secret-string-in-production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/setup"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  calorieai_data:
+    driver: local
+  calorieai_uploads:
+    driver: local

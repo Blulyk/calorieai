@@ -1,0 +1,27 @@
+manifestVersion: 1
+id: calorieai
+category: finance
+name: CalorieAI
+version: "1.0.0"
+tagline: AI-powered calorie tracking from food photos
+description: >-
+  Track your daily calories by simply taking photos of your food.
+  CalorieAI uses Google Gemini AI to identify foods and estimate
+  nutritional values automatically. Supports multiple users, each
+  with their own Gemini API key. Includes daily dashboard, macro
+  tracking, water intake, weekly charts, and AI-calculated calorie goals.
+developer: Blulyk
+website: https://github.com/blulyk/calorieai
+dependencies: []
+repo: https://github.com/blulyk/calorieai
+support: https://github.com/blulyk/calorieai/issues
+port: 3005
+gallery:
+  - 1.jpg
+  - 2.jpg
+  - 3.jpg
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Blulyk
+submission: https://github.com/blulyk/calorieai
