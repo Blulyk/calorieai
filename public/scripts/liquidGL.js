@@ -671,8 +671,8 @@
       gl.uniform2f(this.u.res, w, h);
 
       const snapshotBCR = this.snapshotTarget.getBoundingClientRect();
-      const docX = isFixed ? rect.left : (rect.left - snapshotBCR.left);
-      const docY = isFixed ? rect.top : (rect.top - snapshotBCR.top);
+      const docX = rect.left - snapshotBCR.left;
+      const docY = rect.top - snapshotBCR.top;
       const leftUV = (docX * this.scaleFactor) / this.textureWidth;
       const topUV = (docY * this.scaleFactor) / this.textureHeight;
       const wUV = (rect.width * this.scaleFactor) / this.textureWidth;

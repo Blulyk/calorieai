@@ -72,7 +72,9 @@ const NAV_CLASS = 'cai-bottom-nav'
 export default function BottomNav() {
   const pathname    = usePathname()
   const instanceRef = useRef<{ destroy(): void } | null>(null)
+  const navRef      = useRef<HTMLElement>(null)
 
+  // liquidGL init
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
 
@@ -81,7 +83,6 @@ export default function BottomNav() {
         timer = setTimeout(tryInit, 120)
         return
       }
-      // Destroy previous instance if navigating between pages
       instanceRef.current?.destroy?.()
       try {
         instanceRef.current = window.liquidGL({
@@ -107,20 +108,44 @@ export default function BottomNav() {
     return () => {
       clearTimeout(timer)
       instanceRef.current?.destroy?.()
-      // Reset shared renderer so next mount gets a fresh snapshot
       delete window.__liquidGLRenderer__
     }
   }, [])
 
+  // Hide nav while scrolling so the static liquidGL snapshot doesn't glitch
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+
+    let hideTimer: ReturnType<typeof setTimeout>
+    let isHidden = false
+
+    const hide = () => {
+      if (!isHidden) {
+        isHidden = true
+        nav.style.opacity = '0'
+        nav.style.transform = 'translateY(8px) scale(0.97)'
+      }
+      clearTimeout(hideTimer)
+      hideTimer = setTimeout(show, 180)
+    }
+
+    const show = () => {
+      isHidden = false
+      nav.style.opacity = '1'
+      nav.style.transform = ''
+    }
+
+    window.addEventListener('scroll', hide, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', hide)
+      clearTimeout(hideTimer)
+    }
+  }, [])
+
   return (
-    /*
-     * data-liquid-ignore → html2canvas skips this element when capturing the
-     * background snapshot, so the glass never shows a copy of itself.
-     *
-     * background: transparent → the liquidGL WebGL canvas (z-index:0, fixed)
-     * is visible through the nav, rendering the glass effect at this position.
-     */
     <nav
+      ref={navRef}
       className={`${NAV_CLASS} fixed z-50`}
       data-liquid-ignore
       style={{
@@ -133,6 +158,7 @@ export default function BottomNav() {
         height:       '64px',
         borderRadius: '9999px',
         background:   'transparent',
+        transition:   'opacity 0.22s ease, transform 0.22s ease',
       }}
     >
       <div className="flex items-center justify-around h-full px-2 relative z-10">
