@@ -22,17 +22,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-RUN mkdir -p /data/uploads && chown nextjs:nodejs /data && \
-    mkdir -p /app/public/uploads && chown nextjs:nodejs /app/public/uploads
-
-USER nextjs
+RUN mkdir -p /data/uploads /app/public/uploads
 
 EXPOSE 3000
 ENV PORT=3000
