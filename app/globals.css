@@ -10,16 +10,15 @@
 
   html {
     scroll-behavior: smooth;
-    background: #16162a;
+    background: #0d0d12;
   }
 
   body {
-    background: #16162a;
+    background: #0d0d12;
     color: #f4f4f5;
     overscroll-behavior: none;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(249,115,22,0.08) 0%, transparent 70%),
-      radial-gradient(ellipse 60% 40% at 85% 85%, rgba(99,102,241,0.06) 0%, transparent 60%);
+      radial-gradient(ellipse 70% 40% at 50% -5%, rgba(249,115,22,0.06) 0%, transparent 60%);
     background-attachment: fixed;
   }
 
@@ -72,7 +71,7 @@
       0 4px 16px rgba(0,0,0,0.25);
   }
   .header-glass {
-    background: linear-gradient(to bottom, #16162a 65%, rgba(22,22,42,0));
+    background: linear-gradient(to bottom, #0d0d12 65%, rgba(13,13,18,0));
   }
 }
 
@@ -82,7 +81,7 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #1e1e38 25%, #28283e 50%, #1e1e38 75%);
+  background: linear-gradient(90deg, #1a1a20 25%, #222228 50%, #1a1a20 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

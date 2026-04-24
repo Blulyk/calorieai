@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import CalorieRing, { type CalorieSegment } from '@/components/CalorieRing'
-import MacroBars from '@/components/MacroBars'
 import MealCard from '@/components/MealCard'
 import WaterTracker from '@/components/WaterTracker'
 import WeekChart from '@/components/WeekChart'
@@ -83,26 +82,40 @@ export default function Dashboard() {
     </div>
   )
 
+  const todayLabel = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+    .replace(/^\w/, c => c.toUpperCase())
+
   return (
     <div className="max-w-lg mx-auto min-h-screen">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 sticky top-0 z-10 header-glass">
+      <div className="px-5 pt-12 pb-3 sticky top-0 z-10 header-glass">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-widest">
-              {new Date().toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {greeting()}, {username}
             </p>
-            <h1 className="text-xl font-bold text-zinc-100 mt-0.5">{greeting()}, {username} 👋</h1>
           </div>
           <Link href="/profile">
-            <div className="w-10 h-10 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex items-center justify-center active:scale-90 transition-transform">
-              <span className="text-brand-400 font-bold text-sm">{username[0]?.toUpperCase()}</span>
+            <div className="w-9 h-9 bg-white/5 border border-white/8 rounded-2xl flex items-center justify-center active:scale-90 transition-transform">
+              <span className="text-zinc-400 font-bold text-sm">{username[0]?.toUpperCase()}</span>
             </div>
           </Link>
         </div>
+
+        {/* Hero calorie number */}
+        <div className="mt-3 mb-1">
+          <p className="text-sm text-zinc-600 font-medium">{todayLabel}</p>
+          <div className="flex items-baseline gap-3 mt-0.5">
+            <span className="text-5xl font-bold text-white tabular-nums leading-none tracking-tight">
+              {Math.round(stats.calories).toLocaleString('es-ES')}
+            </span>
+            <span className="text-lg text-zinc-600 font-medium">kcal</span>
+          </div>
+          <p className="text-xs text-zinc-700 mt-1">de {goal} kcal objetivo</p>
+        </div>
       </div>
 
-      <div className="px-4 py-5 space-y-4">
+      <div className="px-4 py-4 space-y-4">
         {/* API key nudge */}
         {settings && !settings.gemini_api_key && (
           <Link href="/profile">
@@ -122,11 +135,24 @@ export default function Dashboard() {
         )}
 
         {/* Calorie ring */}
-        <div className="glass-strong rounded-3xl p-6 flex flex-col items-center">
+        <div className="rounded-3xl p-5 flex flex-col items-center"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <CalorieRing segments={segments} goal={goal} />
-          <div className="w-full mt-5 pt-5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <MacroBars protein={stats.protein} carbs={stats.carbs} fat={stats.fat} />
-          </div>
+        </div>
+
+        {/* Macro stat cards — mirrors Subscription Day's "Yearly Forecast / Avg Monthly" grid */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Proteína',      value: `${Math.round(stats.protein)}g`,  color: '#3b82f6' },
+            { label: 'Carbohidratos', value: `${Math.round(stats.carbs)}g`,    color: '#f59e0b' },
+            { label: 'Grasas',        value: `${Math.round(stats.fat)}g`,      color: '#ec4899' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="rounded-2xl px-3 py-3.5 flex flex-col gap-1"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wide leading-none">{label}</span>
+              <span className="text-xl font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
+            </div>
+          ))}
         </div>
 
         {/* Week chart */}
