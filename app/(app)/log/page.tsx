@@ -57,29 +57,33 @@ export default function LogPage() {
     try {
       const form = new FormData()
       form.append('image', file)
-      form.append('meal_type', mealType)
       const res  = await fetch('/api/analyze', { method: 'POST', body: form })
-      const text = await res.text()
-      if (!text) { setError('Error del servidor — comprueba tu API key en Perfil'); setAnalyzing(false); return }
-      const data = JSON.parse(text)
-      setAnalyzing(false)
-      if (!res.ok) { setError(data.error || 'Análisis fallido'); return }
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Análisis fallido'); setAnalyzing(false); return }
       setResult(data.analysis)
     } catch (e: unknown) {
-      setAnalyzing(false)
       setError(e instanceof Error ? e.message : 'Análisis fallido')
+    } finally {
+      setAnalyzing(false)
     }
   }
 
   async function save() {
-    if (!file) return
-    setSaving(true)
-    const form = new FormData()
-    form.append('image', file)
-    form.append('meal_type', mealType)
-    const res = await fetch('/api/analyze', { method: 'POST', body: form })
-    if (res.ok) router.replace('/')
-    else { setSaving(false); setError('Error al guardar') }
+    if (!file || !result) return
+    setSaving(true); setError('')
+    try {
+      const form = new FormData()
+      form.append('image', file)
+      form.append('meal_type', mealType)
+      form.append('analysis', JSON.stringify(result))
+      const res = await fetch('/api/meals', { method: 'POST', body: form })
+      if (res.ok) router.replace('/')
+      else { const d = await res.json(); setError(d.error || 'Error al guardar') }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const CONF_STYLE: Record<string, string> = {
