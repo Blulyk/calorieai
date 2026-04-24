@@ -4,15 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
-declare global {
-  interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    liquidGL: (opts: any) => { destroy(): void }
-    html2canvas: unknown
-    __liquidGLRenderer__: unknown
-  }
-}
-
 const NAV = [
   {
     href: '/',
@@ -67,57 +58,10 @@ const NAV = [
   },
 ]
 
-const NAV_CLASS = 'cai-bottom-nav'
-
 export default function BottomNav() {
-  const pathname    = usePathname()
-  const instanceRef = useRef<{ destroy(): void } | null>(null)
-  const navRef      = useRef<HTMLElement>(null)
+  const pathname = usePathname()
+  const navRef   = useRef<HTMLElement>(null)
 
-  // liquidGL init
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>
-
-    const tryInit = () => {
-      if (typeof window.liquidGL === 'undefined' || typeof window.html2canvas === 'undefined') {
-        timer = setTimeout(tryInit, 120)
-        return
-      }
-      instanceRef.current?.destroy?.()
-      try {
-        instanceRef.current = window.liquidGL({
-          target:     `.${NAV_CLASS}`,
-          snapshot:   'body',
-          resolution: 1.8,
-          refraction: 0.014,
-          bevelDepth: 0.10,
-          bevelWidth: 0.14,
-          frost:      1.5,
-          shadow:     false,
-          specular:   true,
-          reveal:     'fade',
-          tilt:       false,
-          magnify:    1,
-        })
-        // The WebGL canvas covers the full viewport — disable pointer events
-        // so touch/click events reach the nav links beneath it.
-        document.querySelectorAll('canvas').forEach(c => {
-          c.style.pointerEvents = 'none'
-        })
-      } catch (e) {
-        console.warn('liquidGL init failed', e)
-      }
-    }
-
-    tryInit()
-    return () => {
-      clearTimeout(timer)
-      instanceRef.current?.destroy?.()
-      delete window.__liquidGLRenderer__
-    }
-  }, [])
-
-  // Hide nav while scrolling so the static liquidGL snapshot doesn't glitch
   useEffect(() => {
     const nav = navRef.current
     if (!nav) return
@@ -151,22 +95,25 @@ export default function BottomNav() {
   return (
     <nav
       ref={navRef}
-      className={`${NAV_CLASS} fixed z-50`}
-      data-liquid-ignore
+      className="fixed z-50"
       style={{
-        bottom:       'max(16px, calc(env(safe-area-inset-bottom) + 10px))',
-        left:         '10px',
-        right:        '10px',
-        maxWidth:     '540px',
-        marginLeft:   'auto',
-        marginRight:  'auto',
-        height:       '64px',
-        borderRadius: '9999px',
-        background:   'transparent',
-        transition:   'opacity 0.22s ease, transform 0.22s ease',
+        bottom:        'calc(env(safe-area-inset-bottom) + 10px)',
+        left:          '12px',
+        right:         '12px',
+        maxWidth:      '520px',
+        marginLeft:    'auto',
+        marginRight:   'auto',
+        height:        '64px',
+        borderRadius:  '9999px',
+        background:    'rgba(18, 18, 26, 0.72)',
+        backdropFilter:'blur(28px) saturate(1.6)',
+        WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
+        border:        '1px solid rgba(255,255,255,0.10)',
+        boxShadow:     '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)',
+        transition:    'opacity 0.22s ease, transform 0.22s ease',
       }}
     >
-      <div className="flex items-center justify-around h-full px-2 relative z-10">
+      <div className="flex items-center justify-around h-full px-2">
         {NAV.map(item => {
           const active = pathname === item.href
           return (
