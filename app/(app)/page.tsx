@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import CalorieRing, { type CalorieSegment } from '@/components/CalorieRing'
 import MealCard from '@/components/MealCard'
@@ -16,6 +16,28 @@ interface Meal {
 interface DailyStats { calories: number; protein: number; carbs: number; fat: number }
 interface Settings { calorie_goal: number | null; gemini_api_key: string | null }
 interface WeekDay { date: string; calories: number; meal_count: number }
+
+function useCountUp(target: number, duration = 700, delay = 0) {
+  const [value, setValue] = useState(0)
+  const raf = useRef<number>(0)
+  useEffect(() => {
+    if (target === 0) { setValue(0); return }
+    let started = false
+    let startTime = 0
+    const timeout = setTimeout(() => {
+      const step = (ts: number) => {
+        if (!started) { started = true; startTime = ts }
+        const progress = Math.min((ts - startTime) / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        setValue(Math.round(eased * target))
+        if (progress < 1) raf.current = requestAnimationFrame(step)
+      }
+      raf.current = requestAnimationFrame(step)
+    }, delay)
+    return () => { clearTimeout(timeout); cancelAnimationFrame(raf.current) }
+  }, [target, duration, delay])
+  return value
+}
 
 export default function Dashboard() {
   const router = useRouter()
@@ -73,6 +95,11 @@ export default function Dashboard() {
     }))
   }
 
+  const animatedCal     = useCountUp(Math.round(stats.calories), 800, 100)
+  const animatedProtein = useCountUp(Math.round(stats.protein),  600, 200)
+  const animatedCarbs   = useCountUp(Math.round(stats.carbs),    600, 280)
+  const animatedFat     = useCountUp(Math.round(stats.fat),      600, 360)
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
@@ -85,10 +112,16 @@ export default function Dashboard() {
   const todayLabel = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
     .replace(/^\w/, c => c.toUpperCase())
 
+  const macros = [
+    { label: 'Proteína',      value: animatedProtein, unit: 'g', color: '#3b82f6' },
+    { label: 'Carbohidratos', value: animatedCarbs,   unit: 'g', color: '#f59e0b' },
+    { label: 'Grasas',        value: animatedFat,     unit: 'g', color: '#ec4899' },
+  ]
+
   return (
     <div className="max-w-lg mx-auto min-h-screen">
       {/* Header */}
-      <div className="px-5 pt-12 pb-3 sticky top-0 z-10 header-glass">
+      <div className="px-5 pt-12 pb-3 sticky top-0 z-10 header-glass animate-fadeIn">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-widest">
@@ -107,7 +140,7 @@ export default function Dashboard() {
           <p className="text-sm text-zinc-600 font-medium">{todayLabel}</p>
           <div className="flex items-baseline gap-3 mt-0.5">
             <span className="text-5xl font-bold text-white tabular-nums leading-none tracking-tight">
-              {Math.round(stats.calories).toLocaleString('es-ES')}
+              {animatedCal.toLocaleString('es-ES')}
             </span>
             <span className="text-lg text-zinc-600 font-medium">kcal</span>
           </div>
@@ -119,7 +152,8 @@ export default function Dashboard() {
         {/* API key nudge */}
         {settings && !settings.gemini_api_key && (
           <Link href="/profile">
-            <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 active:opacity-80 transition-opacity">
+            <div className="animate-fadeInUp bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 active:opacity-80 transition-opacity"
+              style={{ animationDelay: '0.05s' }}>
               <div className="w-9 h-9 bg-amber-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
                 <span className="text-lg">🔑</span>
               </div>
@@ -135,39 +169,50 @@ export default function Dashboard() {
         )}
 
         {/* Calorie ring */}
-        <div className="rounded-3xl p-5 flex flex-col items-center"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="animate-fadeInScale rounded-3xl p-5 flex flex-col items-center"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            animationDelay: '0.1s',
+          }}>
           <CalorieRing segments={segments} goal={goal} />
         </div>
 
-        {/* Macro stat cards — mirrors Subscription Day's "Yearly Forecast / Avg Monthly" grid */}
+        {/* Macro stat cards */}
         <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Proteína',      value: `${Math.round(stats.protein)}g`,  color: '#3b82f6' },
-            { label: 'Carbohidratos', value: `${Math.round(stats.carbs)}g`,    color: '#f59e0b' },
-            { label: 'Grasas',        value: `${Math.round(stats.fat)}g`,      color: '#ec4899' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-2xl px-3 py-3.5 flex flex-col gap-1"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          {macros.map(({ label, value, unit, color }, i) => (
+            <div
+              key={label}
+              className="animate-fadeInUp rounded-2xl px-3 py-3.5 flex flex-col gap-1"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                animationDelay: `${0.18 + i * 0.07}s`,
+              }}
+            >
               <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wide leading-none">{label}</span>
-              <span className="text-xl font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
+              <span className="text-xl font-bold tabular-nums leading-none" style={{ color }}>
+                {value}{unit}
+              </span>
             </div>
           ))}
         </div>
 
         {/* Week chart */}
         {weekData.length > 1 && (
-          <div className="glass rounded-3xl p-5">
+          <div className="glass rounded-3xl p-5 animate-fadeInUp" style={{ animationDelay: '0.32s' }}>
             <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Esta semana</p>
             <WeekChart data={weekData} goal={goal} />
           </div>
         )}
 
         {/* Water */}
-        <WaterTracker glasses={water} date={today} onChange={setWater} />
+        <div className="animate-fadeInUp" style={{ animationDelay: '0.38s' }}>
+          <WaterTracker glasses={water} date={today} onChange={setWater} />
+        </div>
 
         {/* Meals */}
-        <div>
+        <div className="animate-fadeInUp" style={{ animationDelay: '0.44s' }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-zinc-100 text-lg">Comidas de hoy</h2>
             <Link href="/log" className="flex items-center gap-1.5 text-xs font-semibold text-brand-400 px-3 py-1.5 rounded-xl active:scale-95 transition-all glass-btn">
@@ -191,9 +236,14 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {meals.map(m => (
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                <MealCard key={m.id} meal={m as any} onDelete={removeMeal} />
+              {meals.map((m, i) => (
+                <MealCard
+                  key={m.id}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  meal={m as any}
+                  onDelete={removeMeal}
+                  index={i}
+                />
               ))}
             </div>
           )}

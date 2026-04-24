@@ -12,13 +12,13 @@ interface Meal {
   calories: number; protein: number; carbs: number; fat: number
   meal_type: string; notes: string | null; created_at: number
 }
-interface Props { meal: Meal; onDelete?: (id: string) => void }
+interface Props { meal: Meal; onDelete?: (id: string) => void; index?: number }
 
 const MEAL_ICONS: Record<string, string> = {
   breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍎',
 }
 
-export default function MealCard({ meal, onDelete }: Props) {
+export default function MealCard({ meal, onDelete, index = 0 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -34,17 +34,18 @@ export default function MealCard({ meal, onDelete }: Props) {
   }
 
   return (
-    <div className="glass rounded-2xl overflow-hidden">
+    <div
+      className="glass rounded-2xl overflow-hidden animate-fadeInUp"
+      style={{ animationDelay: `${index * 0.07}s` }}
+    >
       {meal.photo_path && (
         <div className="relative w-full h-44">
           <Image src={meal.photo_path} alt={meal.name || 'Foto comida'} fill
             className="object-cover" sizes="(max-width: 768px) 100vw, 500px" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          {/* Top icon badge */}
           <div className="absolute top-3 left-3 glass-pill w-8 h-8 rounded-xl flex items-center justify-center">
             <span className="text-sm">{MEAL_ICONS[meal.meal_type] || '🍽️'}</span>
           </div>
-          {/* Bottom info */}
           <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
             <div>
               <span className="text-white font-bold text-base leading-tight line-clamp-1">
@@ -102,7 +103,9 @@ export default function MealCard({ meal, onDelete }: Props) {
         {meal.foods.length > 0 && (
           <button onClick={() => setExpanded(!expanded)}
             className="mt-3 text-xs text-brand-400 font-semibold flex items-center gap-1.5 transition-colors">
-            <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            <svg
+              className="w-3.5 h-3.5 transition-transform duration-300"
+              style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
               fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
@@ -110,7 +113,14 @@ export default function MealCard({ meal, onDelete }: Props) {
           </button>
         )}
 
-        {expanded && (
+        {/* Smooth expand with max-height transition */}
+        <div
+          style={{
+            maxHeight: expanded ? `${meal.foods.length * 64 + 32}px` : '0px',
+            overflow: 'hidden',
+            transition: 'max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
           <div className="mt-3 space-y-0">
             {meal.foods.map((f, i) => (
               <div key={i} className="flex justify-between items-center py-2.5"
@@ -124,7 +134,7 @@ export default function MealCard({ meal, onDelete }: Props) {
             ))}
             {meal.notes && <p className="text-xs text-zinc-600 italic pt-1">{meal.notes}</p>}
           </div>
-        )}
+        </div>
 
         <button onClick={handleDelete} disabled={deleting}
           className="mt-3 text-xs text-zinc-700 hover:text-red-400 transition-colors disabled:opacity-50">

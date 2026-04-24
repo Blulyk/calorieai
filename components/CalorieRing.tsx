@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 const MEAL_COLORS: Record<string, string> = {
   breakfast: '#f59e0b',
   lunch:     '#3b82f6',
@@ -36,6 +38,13 @@ export default function CalorieRing({ segments, goal, size = 230 }: Props) {
   const cy = size / 2
   const circumference = 2 * Math.PI * radius
 
+  // Animate ring from 0 on mount
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 80)
+    return () => clearTimeout(t)
+  }, [])
+
   const consumed = segments.reduce((s, seg) => s + seg.calories, 0)
   const over = consumed > goal
   const pct  = goal > 0 ? Math.round((consumed / goal) * 100) : 0
@@ -44,7 +53,6 @@ export default function CalorieRing({ segments, goal, size = 230 }: Props) {
     .map(type => segments.find(s => s.mealType === type))
     .filter((s): s is CalorieSegment => !!s && s.calories > 0)
 
-  // Dominant segment (most calories)
   const dominant = sorted.length > 0
     ? sorted.reduce((a, b) => a.calories >= b.calories ? a : b)
     : null
@@ -66,13 +74,12 @@ export default function CalorieRing({ segments, goal, size = 230 }: Props) {
   return (
     <div className="flex flex-col items-center">
       <div className="relative" style={{ width: size, height: size }}>
-        {/* Ambient glow */}
+        {/* Ambient glow — pulses */}
         {consumed > 0 && (
-          <div className="absolute rounded-full opacity-20 blur-3xl"
-            style={{
-              inset: '10%',
-              background: glowColor,
-            }} />
+          <div
+            className="absolute rounded-full blur-3xl animate-glowPulse"
+            style={{ inset: '10%', background: glowColor }}
+          />
         )}
 
         <svg width={size} height={size} className="relative z-10" style={{ overflow: 'visible' }}>
@@ -85,13 +92,17 @@ export default function CalorieRing({ segments, goal, size = 230 }: Props) {
           {over ? (
             <circle cx={cx} cy={cy} r={radius}
               fill="none" stroke="#ef4444" strokeWidth={strokeW}
-              strokeDasharray={circumference} strokeDashoffset={0}
+              strokeDasharray={ready ? `${circumference} 0` : `0 ${circumference}`}
+              strokeDashoffset={0}
               transform={`rotate(-90 ${cx} ${cy})`}
               strokeLinecap="butt"
-              style={{ filter: 'drop-shadow(0 0 10px #ef444470)' }}
+              style={{
+                filter: 'drop-shadow(0 0 10px #ef444470)',
+                transition: 'stroke-dasharray 1s cubic-bezier(0.16,1,0.3,1)',
+              }}
             />
           ) : (
-            arcs.map(arc => {
+            arcs.map((arc, idx) => {
               if (arc.frac <= 0) return null
               const startDeg = arc.startFrac * 360 - 90
               const segLen   = arc.frac * circumference
@@ -103,13 +114,13 @@ export default function CalorieRing({ segments, goal, size = 230 }: Props) {
                   fill="none"
                   stroke={color}
                   strokeWidth={strokeW}
-                  strokeDasharray={`${segLen} ${circumference}`}
+                  strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
                   strokeDashoffset={0}
                   transform={`rotate(${startDeg} ${cx} ${cy})`}
                   strokeLinecap="butt"
                   style={{
                     filter: `drop-shadow(0 0 8px ${color}80)`,
-                    transition: 'stroke-dasharray 0.8s cubic-bezier(0.16,1,0.3,1)',
+                    transition: `stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1) ${idx * 80}ms`,
                   }}
                 />
               )
@@ -117,7 +128,7 @@ export default function CalorieRing({ segments, goal, size = 230 }: Props) {
           )}
         </svg>
 
-        {/* Center label — mirrors the "Utilities • €464.69 • 59%" style */}
+        {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-4 text-center">
           {consumed > 0 && dominant ? (
             <>
