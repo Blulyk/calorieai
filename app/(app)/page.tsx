@@ -74,7 +74,7 @@ export default function Dashboard() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-dark-base flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-12 h-12 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto shadow-glow-sm" />
         <p className="text-sm text-zinc-600 mt-4">Cargando…</p>

@@ -31,7 +31,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-base flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-sm relative">
@@ -57,7 +57,7 @@ export default function RegisterPage() {
                 onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                 placeholder={f.placeholder}
                 required
-                className="w-full px-4 py-3.5 rounded-2xl bg-dark-surface border border-dark-border text-zinc-100 placeholder:text-zinc-700 focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 outline-none transition-all"
+                className="glass-input w-full px-4 py-3.5 rounded-2xl"
               />
             </div>
           ))}

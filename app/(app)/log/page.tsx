@@ -93,7 +93,7 @@ export default function LogPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto bg-dark-base min-h-screen">
+    <div className="max-w-lg mx-auto min-h-screen">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center gap-3 header-glass">
         <button onClick={() => router.back()} className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform">
@@ -115,7 +115,7 @@ export default function LogPage() {
               className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0 border ${
                 mealType === t.value
                   ? 'bg-brand-500/15 border-brand-500/30 text-brand-400 shadow-glow-sm'
-                  : 'bg-dark-surface border-dark-border text-zinc-500'
+                  : 'glass-btn text-zinc-500'
               }`}
             >
               <span>{t.icon}</span> {t.label}
@@ -141,9 +141,9 @@ export default function LogPage() {
             </div>
 
             <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-dark-border" />
+              <div className="flex-1 h-px bg-white/8" />
               <span className="text-xs text-zinc-700 font-medium">O</span>
-              <div className="flex-1 h-px bg-dark-border" />
+              <div className="flex-1 h-px bg-white/8" />
             </div>
 
             <button
@@ -173,7 +173,7 @@ export default function LogPage() {
           </div>
         ) : (
           <>
-            <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden border border-dark-border">
+            <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.10)' }}>
               <Image src={preview} alt="Food preview" fill className="object-cover" />
               <button
                 onClick={() => { setPreview(null); setFile(null); setResult(null) }}
@@ -202,10 +202,10 @@ export default function LogPage() {
             {result && (
               <div className="glass rounded-3xl overflow-hidden animate-slide-up">
                 {/* Result header */}
-                <div className="p-5 border-b border-dark-border" style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(249,115,22,0.03))' }}>
+                <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'linear-gradient(135deg, rgba(249,115,22,0.09), rgba(249,115,22,0.03))' }}>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-zinc-100 font-bold text-lg">Análisis IA</h2>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 bg-dark-elevated border-dark-border'}`}>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 glass-pill'}`}>
                       {result.confidence === 'high' ? 'alta' : result.confidence === 'medium' ? 'media' : 'baja'} confianza
                     </span>
                   </div>
@@ -228,7 +228,7 @@ export default function LogPage() {
                 {/* Food items */}
                 <div className="p-4 space-y-2">
                   {result.foods.map((f, i) => (
-                    <div key={i} className="flex justify-between items-start py-2.5 border-b border-dark-border last:border-0">
+                    <div key={i} className="flex justify-between items-start py-2.5 last:border-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-zinc-200 text-sm">{f.name}</div>
                         <div className="text-xs text-zinc-600 mt-0.5">{f.portion}</div>

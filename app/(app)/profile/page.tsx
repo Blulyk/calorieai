@@ -104,7 +104,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto bg-dark-base min-h-screen">
+    <div className="max-w-lg mx-auto min-h-screen">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between header-glass">
         <div>
@@ -129,7 +129,7 @@ export default function ProfilePage() {
               value={settings.gemini_api_key || ''}
               onChange={e => set('gemini_api_key', e.target.value)}
               placeholder="AIza…"
-              className="w-full px-4 py-3 pr-12 rounded-2xl bg-dark-elevated border border-dark-border text-zinc-100 font-mono text-sm placeholder:text-zinc-700 focus:border-brand-500/40 focus:ring-2 focus:ring-brand-500/10 outline-none transition-all"
+              className="glass-input w-full px-4 py-3 pr-12 rounded-2xl font-mono text-sm"
             />
             <button type="button" onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors">
               {showKey
@@ -163,7 +163,7 @@ export default function ProfilePage() {
                     value={settings[f.key] ?? ''}
                     onChange={e => set(f.key, e.target.value ? Number(e.target.value) : null)}
                     placeholder={f.placeholder}
-                    className="w-full px-3 py-2.5 pr-10 rounded-xl bg-dark-elevated border border-dark-border text-zinc-100 placeholder:text-zinc-700 focus:border-brand-500/40 outline-none transition-all text-sm"
+                    className="glass-input w-full px-3 py-2.5 pr-10 rounded-xl text-sm"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-700">{f.unit}</span>
                 </div>
@@ -181,7 +181,7 @@ export default function ProfilePage() {
                   className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
                     settings.gender === g.v
                       ? 'bg-brand-500/15 border-brand-500/30 text-brand-400'
-                      : 'bg-dark-elevated border-dark-border text-zinc-600'
+                      : 'glass-btn text-zinc-500'
                   }`}
                 >
                   {g.l}
@@ -219,7 +219,7 @@ export default function ProfilePage() {
                 className={`w-full text-left px-4 py-3 rounded-2xl flex items-center justify-between transition-all border ${
                   settings.activity_level === a.value
                     ? 'bg-brand-500/10 border-brand-500/30'
-                    : 'bg-dark-elevated border-dark-border'
+                    : 'glass-btn'
                 }`}
               >
                 <div>
@@ -256,7 +256,7 @@ export default function ProfilePage() {
                   { val: goalResult.bmi,           label: goalResult.bmi_category, sub: 'IMC' },
                   { val: goalResult.tdee,          label: 'TDEE',    sub: 'Mantenimiento' },
                 ].map((s, i) => (
-                  <div key={i} className="bg-dark-elevated rounded-xl p-3">
+                  <div key={i} className="glass-pill rounded-xl p-3">
                     <div className="text-lg font-bold text-brand-400">{s.val}</div>
                     <div className="text-xs text-zinc-600 leading-tight mt-0.5">{s.label}</div>
                   </div>

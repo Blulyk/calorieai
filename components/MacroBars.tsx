@@ -17,7 +17,7 @@ function MacroBar({ label, value, goal, color, bg, unit = 'g' }: MacroBarProps) 
         <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
         <span className="text-xs font-bold text-zinc-200 tabular-nums">{Math.round(value)}{unit}</span>
       </div>
-      <div className="h-1.5 bg-dark-elevated rounded-full overflow-hidden">
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color, boxShadow: `0 0 6px ${color}60` }}
