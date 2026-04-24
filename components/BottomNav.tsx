@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef } from 'react'
 
 const NAV = [
   {
@@ -60,41 +59,9 @@ const NAV = [
 
 export default function BottomNav() {
   const pathname = usePathname()
-  const navRef   = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const nav = navRef.current
-    if (!nav) return
-
-    let hideTimer: ReturnType<typeof setTimeout>
-    let isHidden = false
-
-    const hide = () => {
-      if (!isHidden) {
-        isHidden = true
-        nav.style.opacity = '0'
-        nav.style.transform = 'translateY(8px) scale(0.97)'
-      }
-      clearTimeout(hideTimer)
-      hideTimer = setTimeout(show, 180)
-    }
-
-    const show = () => {
-      isHidden = false
-      nav.style.opacity = '1'
-      nav.style.transform = ''
-    }
-
-    window.addEventListener('scroll', hide, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', hide)
-      clearTimeout(hideTimer)
-    }
-  }, [])
 
   return (
     <nav
-      ref={navRef}
       className="fixed z-50"
       style={{
         bottom:        'calc(env(safe-area-inset-bottom) + 10px)',
@@ -110,7 +77,6 @@ export default function BottomNav() {
         WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
         border:        '1px solid rgba(255,255,255,0.10)',
         boxShadow:     '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)',
-        transition:    'opacity 0.22s ease, transform 0.22s ease',
       }}
     >
       <div className="flex items-center justify-around h-full px-2">
