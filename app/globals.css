@@ -75,6 +75,11 @@
   }
 }
 
+/* liquidGL canvas must never intercept touch/click events */
+canvas {
+  pointer-events: none;
+}
+
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }

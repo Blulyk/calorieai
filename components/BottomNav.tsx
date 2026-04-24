@@ -99,6 +99,11 @@ export default function BottomNav() {
           tilt:       false,
           magnify:    1,
         })
+        // The WebGL canvas covers the full viewport — disable pointer events
+        // so touch/click events reach the nav links beneath it.
+        document.querySelectorAll('canvas').forEach(c => {
+          c.style.pointerEvents = 'none'
+        })
       } catch (e) {
         console.warn('liquidGL init failed', e)
       }
