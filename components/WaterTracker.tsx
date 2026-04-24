@@ -10,8 +10,8 @@ interface Props {
 
 const ML_PER_GLASS = 250
 const GOAL_ML = 2500
-const GOAL_GLASSES = GOAL_ML / ML_PER_GLASS  // 10
-const MAX_GLASSES = 12                         // 3000 ml
+const GOAL_GLASSES = GOAL_ML / ML_PER_GLASS
+const MAX_GLASSES = 12
 
 export default function WaterTracker({ glasses, date, onChange }: Props) {
   const [current, setCurrent] = useState(glasses)
@@ -35,10 +35,10 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
   const reached = currentMl >= GOAL_ML
 
   return (
-    <div className="bg-dark-surface border border-dark-border rounded-2xl p-4">
+    <div className="glass rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center">
+          <div className="glass-pill w-8 h-8 rounded-xl flex items-center justify-center">
             <span className="text-base">💧</span>
           </div>
           <span className="font-semibold text-zinc-200">Agua</span>
@@ -52,28 +52,25 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
       </div>
 
       {/* Progress bar */}
-      <div className="h-3 bg-dark-elevated rounded-full overflow-hidden mb-3 relative">
+      <div className="h-2.5 rounded-full overflow-hidden mb-3 relative"
+        style={{ background: 'rgba(255,255,255,0.06)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.2)' }}>
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
             width: `${pct}%`,
             background: reached
               ? 'linear-gradient(90deg, #2563eb, #06b6d4)'
-              : 'linear-gradient(90deg, #3b82f6, #06b6d4)',
-            boxShadow: pct > 0 ? '0 0 10px #3b82f650' : 'none',
+              : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+            boxShadow: pct > 0 ? '0 0 8px rgba(59,130,246,0.5)' : 'none',
           }}
         />
-        {/* Goal marker */}
-        {!reached && (
-          <div className="absolute right-0 top-0 h-full w-px bg-blue-500/30" />
-        )}
       </div>
 
       {/* Ml markers */}
       <div className="flex justify-between mb-4">
         {[0, 500, 1000, 1500, 2000, 2500].map(ml => (
           <span key={ml} className={`text-[10px] tabular-nums ${
-            currentMl >= ml ? 'text-blue-500/60' : 'text-zinc-700'
+            currentMl >= ml ? 'text-blue-400/60' : 'text-zinc-700'
           }`}>{ml === 0 ? '0' : `${ml/1000}L`}</span>
         ))}
       </div>
@@ -83,17 +80,21 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
         <button
           onClick={() => update(current - 1)}
           disabled={current === 0}
-          className="flex-1 py-2.5 rounded-xl border border-dark-border text-zinc-400 font-semibold text-sm active:scale-95 transition-all disabled:opacity-30"
+          className="glass-btn flex-1 py-2.5 rounded-xl text-zinc-300 font-semibold text-sm active:scale-95 transition-all disabled:opacity-30"
         >
           − 250 ml
         </button>
-        <div className="flex flex-col items-center">
-          <span className="text-xl">{reached ? '✅' : '💧'}</span>
-        </div>
+        <span className="text-xl">{reached ? '✅' : '💧'}</span>
         <button
           onClick={() => update(current + 1)}
           disabled={current >= MAX_GLASSES}
-          className="flex-1 py-2.5 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-400 font-semibold text-sm active:scale-95 transition-all disabled:opacity-30"
+          className="flex-1 py-2.5 rounded-xl font-semibold text-sm active:scale-95 transition-all disabled:opacity-30"
+          style={{
+            background: 'linear-gradient(160deg, rgba(59,130,246,0.20) 0%, rgba(59,130,246,0.10) 100%)',
+            border: '1px solid rgba(59,130,246,0.25)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
+            color: '#93c5fd',
+          }}
         >
           + 250 ml
         </button>

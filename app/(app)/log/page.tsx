@@ -96,7 +96,7 @@ export default function LogPage() {
     <div className="max-w-lg mx-auto bg-dark-base min-h-screen">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center gap-3 header-glass">
-        <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-dark-surface border border-dark-border flex items-center justify-center active:scale-90 transition-transform">
+        <button onClick={() => router.back()} className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform">
           <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
@@ -125,10 +125,11 @@ export default function LogPage() {
 
         {/* Upload area */}
         {!preview ? (
-          <div className="bg-dark-surface border border-dark-border rounded-3xl p-6">
+          <div className="glass rounded-3xl p-6">
             <div
               onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-dark-border rounded-2xl p-8 text-center cursor-pointer hover:border-brand-500/30 transition-colors active:bg-dark-elevated"
+              className="rounded-2xl p-8 text-center cursor-pointer active:scale-[0.99] transition-all"
+              style={{ border: '1.5px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)' }}
             >
               <div className="w-16 h-16 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-brand-500/60" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -199,7 +200,7 @@ export default function LogPage() {
             )}
 
             {result && (
-              <div className="bg-dark-surface border border-dark-border rounded-3xl overflow-hidden animate-slide-up">
+              <div className="glass rounded-3xl overflow-hidden animate-slide-up">
                 {/* Result header */}
                 <div className="p-5 border-b border-dark-border" style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(249,115,22,0.03))' }}>
                   <div className="flex items-center justify-between mb-4">
@@ -246,7 +247,7 @@ export default function LogPage() {
                 <div className="p-4 pt-0 flex gap-3">
                   <button
                     onClick={() => { setResult(null); setPreview(null); setFile(null) }}
-                    className="flex-1 py-3 rounded-2xl border border-dark-border text-zinc-400 font-semibold text-sm active:scale-95 transition-transform"
+                    className="glass-btn flex-1 py-3 rounded-2xl text-zinc-300 font-semibold text-sm active:scale-95 transition-transform"
                   >
                     Repetir
                   </button>

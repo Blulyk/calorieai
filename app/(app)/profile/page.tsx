@@ -29,9 +29,9 @@ const GOAL_OPTIONS = [
 
 function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-dark-surface border border-dark-border rounded-3xl p-5">
+    <div className="glass rounded-3xl p-5">
       <div className="flex items-center gap-2 mb-5">
-        <div className="w-8 h-8 bg-dark-elevated rounded-xl flex items-center justify-center">
+        <div className="glass-pill w-8 h-8 rounded-xl flex items-center justify-center">
           <span className="text-base">{icon}</span>
         </div>
         <h2 className="font-bold text-zinc-100">{title}</h2>

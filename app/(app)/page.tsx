@@ -170,7 +170,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-zinc-100 text-lg">Comidas de hoy</h2>
-            <Link href="/log" className="flex items-center gap-1.5 text-xs font-semibold text-brand-400 bg-brand-500/10 border border-brand-500/20 px-3 py-1.5 rounded-xl active:opacity-70 transition-opacity">
+            <Link href="/log" className="flex items-center gap-1.5 text-xs font-semibold text-brand-400 px-3 py-1.5 rounded-xl active:scale-95 transition-all glass-btn">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>

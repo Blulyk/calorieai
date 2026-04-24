@@ -96,8 +96,7 @@ export default function HistoryPage() {
         <h1 className="text-2xl font-bold text-zinc-100 mb-4">Historial</h1>
         <div className="flex items-center justify-between">
           <button onClick={prevMonth}
-            className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform">
             <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>

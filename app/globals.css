@@ -45,19 +45,46 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+  /* ── Apple Liquid Glass system ── */
   .glass {
-    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
+    background: linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%);
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.11);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 4px 24px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.13);
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.18),
+      inset 0 -1px 0 rgba(0,0,0,0.08),
+      0 8px 32px rgba(0,0,0,0.28);
   }
   .glass-strong {
-    background: linear-gradient(135deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.06) 100%);
+    background: linear-gradient(160deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.07) 100%);
     backdrop-filter: blur(60px) saturate(200%);
     -webkit-backdrop-filter: blur(60px) saturate(200%);
-    border: 1px solid rgba(255,255,255,0.15);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.13), 0 8px 32px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.16);
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.22),
+      inset 0 -1px 0 rgba(0,0,0,0.10),
+      0 12px 40px rgba(0,0,0,0.32);
+  }
+  /* Interactive glass button — floating pill/sheet style */
+  .glass-btn {
+    background: linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.16);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.22),
+      inset 0 -1px 0 rgba(0,0,0,0.08),
+      0 4px 12px rgba(0,0,0,0.18);
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  /* Tiny badge/pill glass */
+  .glass-pill {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
   }
   .glass-nav {
     background: linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.09) 100%);
