@@ -90,7 +90,7 @@ export default function HistoryPage() {
   ]
 
   return (
-    <div className="max-w-lg mx-auto min-h-screen">
+    <div className="liquid-page max-w-lg mx-auto min-h-screen">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 header-glass">
         <h1 className="text-2xl font-bold text-zinc-100 mb-4">Historial</h1>

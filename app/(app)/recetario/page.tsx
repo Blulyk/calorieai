@@ -103,7 +103,7 @@ export default function RecetarioPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
 
   return (
-    <div className="max-w-lg mx-auto min-h-screen">
+    <div className="liquid-page max-w-lg mx-auto min-h-screen">
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center justify-between header-glass">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Recetario</h1>

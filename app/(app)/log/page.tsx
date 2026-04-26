@@ -93,7 +93,7 @@ export default function LogPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto min-h-screen">
+    <div className="liquid-page max-w-lg mx-auto min-h-screen">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 sticky top-0 z-10 flex items-center gap-3 header-glass">
         <button onClick={() => router.back()} className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform">

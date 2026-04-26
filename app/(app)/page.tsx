@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import CalorieRing, { type CalorieSegment } from '@/components/CalorieRing'
 import MealCard from '@/components/MealCard'
 import WaterTracker from '@/components/WaterTracker'
 import WeekChart from '@/components/WeekChart'
-import Link from 'next/link'
 
 interface Meal {
   id: string; name: string | null; photo_path: string | null
@@ -42,13 +42,13 @@ function useCountUp(target: number, duration = 700, delay = 0) {
 export default function Dashboard() {
   const router = useRouter()
   const today = new Date().toISOString().split('T')[0]
-  const [meals, setMeals]       = useState<Meal[]>([])
-  const [stats, setStats]       = useState<DailyStats>({ calories: 0, protein: 0, carbs: 0, fat: 0 })
-  const [water, setWater]       = useState(0)
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [stats, setStats] = useState<DailyStats>({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+  const [water, setWater] = useState(0)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [weekData, setWeekData] = useState<WeekDay[]>([])
   const [username, setUsername] = useState('')
-  const [loading, setLoading]   = useState(true)
+  const [loading, setLoading] = useState(true)
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -76,7 +76,8 @@ export default function Dashboard() {
   }, [today, router])
 
   const goal = settings?.calorie_goal || 2000
-
+  const remaining = Math.round(goal - stats.calories)
+  const percent = Math.min(100, Math.round((stats.calories / goal) * 100))
   const segments: CalorieSegment[] = ['breakfast', 'lunch', 'dinner', 'snack']
     .map(type => ({
       mealType: type,
@@ -89,166 +90,134 @@ export default function Dashboard() {
     setMeals(ms => ms.filter(m => m.id !== id))
     if (m) setStats(s => ({
       calories: Math.max(0, s.calories - m.calories),
-      protein:  Math.max(0, s.protein  - m.protein),
-      carbs:    Math.max(0, s.carbs    - m.carbs),
-      fat:      Math.max(0, s.fat      - m.fat),
+      protein: Math.max(0, s.protein - m.protein),
+      carbs: Math.max(0, s.carbs - m.carbs),
+      fat: Math.max(0, s.fat - m.fat),
     }))
   }
 
-  const animatedCal     = useCountUp(Math.round(stats.calories), 800, 100)
-  const animatedProtein = useCountUp(Math.round(stats.protein),  600, 200)
-  const animatedCarbs   = useCountUp(Math.round(stats.carbs),    600, 280)
-  const animatedFat     = useCountUp(Math.round(stats.fat),      600, 360)
+  const animatedCal = useCountUp(Math.round(stats.calories), 800, 100)
+  const animatedProtein = useCountUp(Math.round(stats.protein), 600, 200)
+  const animatedCarbs = useCountUp(Math.round(stats.carbs), 600, 280)
+  const animatedFat = useCountUp(Math.round(stats.fat), 600, 360)
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto shadow-glow-sm" />
-        <p className="text-sm text-zinc-600 mt-4">Cargando…</p>
+    <div className="liquid-page flex min-h-screen items-center justify-center">
+      <div className="glass-strong rounded-[2rem] px-8 py-7 text-center">
+        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-white/30 border-t-brand-400" />
+        <p className="mt-4 text-sm font-medium text-zinc-300/70">Cargando tu día</p>
       </div>
     </div>
   )
 
-  const todayLabel = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+  const monthLabel = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
     .replace(/^\w/, c => c.toUpperCase())
 
   const macros = [
-    { label: 'Proteína',      value: animatedProtein, unit: 'g', color: '#3b82f6' },
-    { label: 'Carbohidratos', value: animatedCarbs,   unit: 'g', color: '#f59e0b' },
-    { label: 'Grasas',        value: animatedFat,     unit: 'g', color: '#ec4899' },
+    { label: 'Proteína', value: animatedProtein, unit: 'g', color: '#93c5fd', bg: 'rgba(59,130,246,0.16)' },
+    { label: 'Carbos', value: animatedCarbs, unit: 'g', color: '#fdba74', bg: 'rgba(249,115,22,0.16)' },
+    { label: 'Grasas', value: animatedFat, unit: 'g', color: '#fda4af', bg: 'rgba(244,63,94,0.16)' },
   ]
 
   return (
-    <div className="max-w-lg mx-auto min-h-screen">
-      {/* Header */}
-      <div className="px-5 pt-12 pb-3 sticky top-0 z-10 header-glass animate-fadeIn">
+    <div className="liquid-page mx-auto min-h-screen max-w-lg pb-32">
+      <div className="sticky top-0 z-10 px-5 pt-11 pb-3 header-glass">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-zinc-600 font-medium uppercase tracking-widest">
-              {greeting()}, {username}
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white/38">{greeting()}</p>
+            <p className="mt-1 text-sm font-semibold text-white/82">@{username}</p>
           </div>
-          <Link href="/profile">
-            <div className="w-9 h-9 bg-white/5 border border-white/8 rounded-2xl flex items-center justify-center active:scale-90 transition-transform">
-              <span className="text-zinc-400 font-bold text-sm">{username[0]?.toUpperCase()}</span>
-            </div>
+          <Link href="/profile" className="glass-pill flex h-11 w-11 items-center justify-center rounded-2xl text-base font-bold text-white">
+            {username[0]?.toUpperCase()}
           </Link>
-        </div>
-
-        {/* Hero calorie number */}
-        <div className="mt-3 mb-1">
-          <p className="text-sm text-zinc-600 font-medium">{todayLabel}</p>
-          <div className="flex items-baseline gap-3 mt-0.5">
-            <span className="text-5xl font-bold text-white tabular-nums leading-none tracking-tight">
-              {animatedCal.toLocaleString('es-ES')}
-            </span>
-            <span className="text-lg text-zinc-600 font-medium">kcal</span>
-          </div>
-          <p className="text-xs text-zinc-700 mt-1">de {goal} kcal objetivo</p>
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4">
-        {/* API key nudge */}
-        {settings && !settings.gemini_api_key && (
-          <Link href="/profile">
-            <div className="animate-fadeInUp bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 active:opacity-80 transition-opacity"
-              style={{ animationDelay: '0.05s' }}>
-              <div className="w-9 h-9 bg-amber-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-lg">🔑</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-amber-400 text-sm">Añade tu API key de Gemini</div>
-                <div className="text-amber-600 text-xs mt-0.5">Necesaria para analizar fotos → Perfil</div>
-              </div>
-              <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+      <main className="space-y-4 px-4 pt-3">
+        <section className="text-center">
+          <p className="text-sm font-medium text-white/40">{monthLabel}</p>
+          <div className="mt-1 flex items-baseline justify-center gap-2">
+            <span className="text-[4.8rem] font-bold leading-none tracking-normal text-white/90 tabular-nums">
+              {animatedCal.toLocaleString('es-ES')}
+            </span>
+            <span className="text-lg font-semibold text-white/38">kcal</span>
+          </div>
+          <p className={`text-sm font-semibold ${remaining < 0 ? 'text-red-200' : 'text-white/50'}`}>
+            {remaining < 0 ? `${Math.abs(remaining)} kcal por encima` : `${remaining} kcal restantes`}
+          </p>
+        </section>
+
+        <section className="glass-strong liquid-card specular p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">Balance diario</p>
+              <p className="mt-1 text-sm text-white/62">Objetivo {goal} kcal</p>
             </div>
+            <div className="glass-pill rounded-full px-3 py-1.5 text-sm font-bold text-white">
+              {percent}%
+            </div>
+          </div>
+          <CalorieRing segments={segments} goal={goal} />
+        </section>
+
+        {!settings?.gemini_api_key && (
+          <Link href="/profile" className="glass flex items-center gap-3 rounded-[1.7rem] p-4">
+            <div className="glass-pill flex h-10 w-10 items-center justify-center rounded-2xl text-sm font-bold text-amber-100">AI</div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-100">Añade tu API key de Gemini</p>
+              <p className="mt-0.5 text-xs text-amber-100/55">Necesaria para analizar fotos</p>
+            </div>
+            <span className="text-lg text-amber-100/70">›</span>
           </Link>
         )}
 
-        {/* Calorie ring */}
-        <div className="animate-fadeInScale rounded-3xl p-5 flex flex-col items-center"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            animationDelay: '0.1s',
-          }}>
-          <CalorieRing segments={segments} goal={goal} />
-        </div>
-
-        {/* Macro stat cards */}
-        <div className="grid grid-cols-3 gap-3">
-          {macros.map(({ label, value, unit, color }, i) => (
-            <div
-              key={label}
-              className="animate-fadeInUp rounded-2xl px-3 py-3.5 flex flex-col gap-1"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                animationDelay: `${0.18 + i * 0.07}s`,
-              }}
-            >
-              <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wide leading-none">{label}</span>
-              <span className="text-xl font-bold tabular-nums leading-none" style={{ color }}>
-                {value}{unit}
-              </span>
+        <section className="grid grid-cols-3 gap-3">
+          {macros.map((m, i) => (
+            <div key={m.label} className="glass rounded-[1.4rem] p-3.5 animate-fadeInUp" style={{ animationDelay: `${0.08 + i * 0.06}s` }}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/38">{m.label}</p>
+              <p className="mt-2 text-2xl font-bold leading-none tabular-nums" style={{ color: m.color }}>{m.value}{m.unit}</p>
+              <div className="mt-3 h-1.5 rounded-full bg-white/8">
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, m.value)}%`, background: m.color, boxShadow: `0 0 14px ${m.color}` }} />
+              </div>
             </div>
           ))}
-        </div>
+        </section>
 
-        {/* Week chart */}
         {weekData.length > 1 && (
-          <div className="glass rounded-3xl p-5 animate-fadeInUp" style={{ animationDelay: '0.32s' }}>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Esta semana</p>
+          <section className="glass liquid-card p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">Semana</p>
+              <Link href="/history" className="text-xs font-semibold text-brand-200">Ver historial</Link>
+            </div>
             <WeekChart data={weekData} goal={goal} />
-          </div>
+          </section>
         )}
 
-        {/* Water */}
-        <div className="animate-fadeInUp" style={{ animationDelay: '0.38s' }}>
-          <WaterTracker glasses={water} date={today} onChange={setWater} />
-        </div>
+        <WaterTracker glasses={water} date={today} onChange={setWater} />
 
-        {/* Meals */}
-        <div className="animate-fadeInUp" style={{ animationDelay: '0.44s' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-zinc-100 text-lg">Comidas de hoy</h2>
-            <Link href="/log" className="flex items-center gap-1.5 text-xs font-semibold text-brand-400 px-3 py-1.5 rounded-xl active:scale-95 transition-all glass-btn">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Añadir comida
-            </Link>
+        <section>
+          <div className="mb-3 flex items-center justify-between px-1">
+            <h2 className="text-lg font-bold text-white">Comidas de hoy</h2>
+            <Link href="/log" className="glass-btn rounded-full px-3 py-2 text-xs font-bold text-white">Añadir</Link>
           </div>
 
           {meals.length === 0 ? (
-            <div className="glass rounded-3xl p-8 text-center">
-              <div className="text-5xl mb-3">🍽️</div>
-              <p className="font-bold text-zinc-200 text-lg">Sin comidas hoy</p>
-              <p className="text-sm text-zinc-600 mt-1 mb-5">Haz una foto para registrar tu primera comida</p>
-              <Link href="/log">
-                <button className="bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-2xl text-sm active:scale-95 transition-transform shadow-glow">
-                  Registrar comida
-                </button>
+            <div className="glass liquid-card p-8 text-center">
+              <p className="text-xl font-bold text-white">Sin comidas hoy</p>
+              <p className="mx-auto mt-2 max-w-[260px] text-sm text-white/46">Haz una foto y deja que la IA estime calorías y macros.</p>
+              <Link href="/log" className="mt-5 inline-flex rounded-full bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-glow">
+                Registrar comida
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               {meals.map((m, i) => (
-                <MealCard
-                  key={m.id}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  meal={m as any}
-                  onDelete={removeMeal}
-                  index={i}
-                />
+                <MealCard key={m.id} meal={m as never} onDelete={removeMeal} index={i} />
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }
