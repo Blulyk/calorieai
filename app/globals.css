@@ -45,9 +45,15 @@
   .glass,
   .glass-strong,
   .glass-btn,
-  .glass-pill,
-  .glass-nav {
+  .glass-pill {
     position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.12);
+    transform: translateZ(0);
+  }
+
+  .glass-nav {
+    position: fixed;
     overflow: hidden;
     border: 1px solid rgba(255,255,255,0.12);
     transform: translateZ(0);
