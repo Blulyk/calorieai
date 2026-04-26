@@ -7,7 +7,7 @@ services:
       APP_PORT: 3000
 
   web:
-    image: blulyk/calorieai:latest
+    image: ghcr.io/blulyk/calorieai:latest
     restart: on-failure
     stop_grace_period: 1m
     volumes:

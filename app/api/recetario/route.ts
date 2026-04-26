@@ -42,6 +42,9 @@ export async function POST(req: Request) {
 
     let photoPath: string | null = null
     if (photoFile && photoFile.size > 0) {
+      if (!photoFile.type.startsWith('image/')) {
+        return NextResponse.json({ error: 'La foto debe ser una imagen' }, { status: 400 })
+      }
       const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
       await mkdir(uploadsDir, { recursive: true })
       const ext = photoFile.name.split('.').pop() || 'jpg'

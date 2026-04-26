@@ -65,11 +65,24 @@ export default function RecetarioPage() {
   async function logAsFood(recipe: Recipe) {
     setLogging(recipe.id)
     const today = new Date().toISOString().split('T')[0]
-    await fetch('/api/meals', {
+    const res = await fetch('/api/meals', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: today, meal_type: 'snack', name: recipe.name, foods: recipe.foods, calories: recipe.calories, protein: recipe.protein, carbs: recipe.carbs, fat: recipe.fat, fiber: recipe.fiber }),
+      body: JSON.stringify({
+        date: today,
+        meal_type: 'snack',
+        name: recipe.name,
+        foods: recipe.foods,
+        calories: recipe.calories,
+        protein: recipe.protein,
+        carbs: recipe.carbs,
+        fat: recipe.fat,
+        fiber: recipe.fiber,
+        notes: 'Añadido desde el recetario',
+      }),
     })
-    setLogging(null); router.push('/')
+    setLogging(null)
+    if (res.ok) router.push('/')
+    else setFormError('No se pudo registrar la receta como comida')
   }
 
   async function handleDelete(id: string) {

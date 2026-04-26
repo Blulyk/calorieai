@@ -4,6 +4,15 @@ import { deleteMeal, getMealById } from '@/lib/db'
 import fs from 'fs'
 import path from 'path'
 
+function deleteUpload(photoPath: string) {
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+  const filename = path.basename(photoPath)
+  const target = path.join(uploadsDir, filename)
+
+  if (!target.startsWith(uploadsDir + path.sep)) return
+  try { fs.unlinkSync(target) } catch {}
+}
+
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -12,7 +21,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!meal) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   if (meal.photo_path) {
-    try { fs.unlinkSync(path.join(process.cwd(), 'public', meal.photo_path)) } catch {}
+    deleteUpload(meal.photo_path)
   }
 
   deleteMeal(params.id, session.userId)
