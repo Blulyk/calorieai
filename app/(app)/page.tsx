@@ -120,7 +120,7 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="liquid-page mx-auto min-h-screen max-w-lg pb-32">
+    <div className="liquid-page mx-auto min-h-screen max-w-lg pb-8">
       <div className="sticky top-0 z-10 px-5 pt-11 pb-3 header-glass">
         <div className="flex items-center justify-between">
           <div>
@@ -205,7 +205,7 @@ export default function Dashboard() {
             <div className="glass liquid-card p-8 text-center">
               <p className="text-xl font-bold text-white">Sin comidas hoy</p>
               <p className="mx-auto mt-2 max-w-[260px] text-sm text-white/46">Haz una foto y deja que la IA estime calorías y macros.</p>
-              <Link href="/log" className="mt-5 inline-flex rounded-full bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-glow">
+              <Link href="/log" className="mt-5 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-bold text-white">
                 Registrar comida
               </Link>
             </div>

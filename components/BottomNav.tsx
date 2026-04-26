@@ -45,7 +45,7 @@ export default function BottomNav() {
         maxWidth: '520px',
         marginLeft: 'auto',
         marginRight: 'auto',
-        height: '70px',
+        height: '64px',
         borderRadius: '9999px',
       }}
     >
@@ -58,32 +58,17 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex min-w-[58px] flex-col items-center justify-center gap-1 rounded-full transition-all duration-300 active:scale-95 ${
-                active && !isLog ? 'text-white' : 'text-zinc-300'
+              className={`relative flex min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-full transition-all active:scale-95 ${
+                active && !isLog ? 'text-white' : 'text-zinc-400'
               }`}
-              style={{
-                height: isLog ? 58 : 54,
-              }}
             >
               {active && !isLog && (
-                <span
-                  className="absolute inset-x-1 top-1 bottom-1 rounded-full"
-                  style={{
-                    background: 'linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 10px 24px rgba(0,0,0,0.18)',
-                  }}
-                />
+                <span className="absolute inset-x-2 top-1 bottom-1 rounded-full bg-white/10" />
               )}
 
               {isLog ? (
-                <span
-                  className="relative flex h-[56px] w-[56px] items-center justify-center rounded-full"
-                  style={{
-                    background: 'radial-gradient(circle at 35% 25%, #fff6, transparent 24%), linear-gradient(145deg, #ff9a3d, #ff4d1f 58%, #bb1d10)',
-                    boxShadow: '0 0 34px rgba(249,115,22,0.55), inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -10px 20px rgba(70,0,0,0.28)',
-                  }}
-                >
-                  <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} viewBox="0 0 24 24">
+                <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-[#0071e3] text-white">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} viewBox="0 0 24 24">
                     <path d={item.icon} />
                   </svg>
                 </span>
@@ -92,9 +77,7 @@ export default function BottomNav() {
                   <svg className="relative h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} viewBox="0 0 24 24">
                     <path d={item.icon} />
                   </svg>
-                  <span className={`relative text-[10px] font-semibold leading-none ${active ? 'text-white' : 'text-zinc-400'}`}>
-                    {item.label}
-                  </span>
+                  <span className="relative text-[10px] font-semibold leading-none">{item.label}</span>
                 </>
               )}
             </Link>
