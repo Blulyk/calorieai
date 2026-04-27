@@ -119,6 +119,36 @@
 
   .liquid-card { border-radius: 28px; }
 
+  .water-panel,
+  .water-summary {
+    background:
+      linear-gradient(180deg, rgba(30,41,59,0.92), rgba(14,22,34,0.94)),
+      #161617;
+    border-color: rgba(125,211,252,0.22);
+  }
+
+  .water-panel::before,
+  .water-summary::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 18% 0%, rgba(56,189,248,0.18), transparent 34%),
+      linear-gradient(90deg, rgba(255,255,255,0.08), transparent 44%);
+    opacity: 0.9;
+  }
+
+  .water-panel > *,
+  .water-summary > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .water-progress {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+
   .specular::after { display: none; }
 }
 

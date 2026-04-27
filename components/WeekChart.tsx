@@ -4,6 +4,8 @@ interface DayData {
   date: string
   calories: number
   meal_count: number
+  water_ml?: number
+  water_glasses?: number
 }
 
 interface Props {
@@ -21,6 +23,7 @@ export default function WeekChart({ data, goal }: Props) {
         const over = day.calories > goal
         const isToday = day.date === new Date().toISOString().split('T')[0]
         const hasMeals = day.calories > 0
+        const hasWater = (day.water_ml ?? 0) > 0
         const label = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1)
 
         return (
@@ -40,6 +43,9 @@ export default function WeekChart({ data, goal }: Props) {
                   boxShadow: isToday && hasMeals ? '0 0 12px #22c55e40' : 'none',
                 }}
               />
+            </div>
+            <div className="h-1.5">
+              {hasWater && <div className="h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.7)]" />}
             </div>
             <span className={`text-[10px] font-bold ${isToday ? 'text-brand-400' : 'text-zinc-700'}`}>
               {label}

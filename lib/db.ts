@@ -65,6 +65,7 @@ function initSchema(db: DatabaseSync) {
       user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       date      TEXT NOT NULL,
       glasses   INTEGER NOT NULL DEFAULT 0,
+      water_ml  INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (user_id, date)
     );
 
@@ -88,6 +89,14 @@ function initSchema(db: DatabaseSync) {
     );
     CREATE INDEX IF NOT EXISTS idx_recipes_user ON recipes(user_id);
   `)
+
+  try {
+    db.exec('ALTER TABLE daily_water ADD COLUMN water_ml INTEGER NOT NULL DEFAULT 0')
+  } catch {
+    // Existing installs already have this column.
+  }
+
+  db.exec('UPDATE daily_water SET water_ml = glasses * 250 WHERE water_ml = 0 AND glasses > 0')
 }
 
 // ─── User queries ─────────────────────────────────────────────────────────────
@@ -174,32 +183,85 @@ export function getDailyStats(userId: string, date: string) {
 
 export function getWeeklyStats(userId: string, startDate: string, endDate: string) {
   return getDb().prepare(`
-    SELECT date,
-      COALESCE(SUM(calories),0) as calories,
-      COUNT(*) as meal_count
-    FROM meals WHERE user_id = ? AND date BETWEEN ? AND ?
-    GROUP BY date ORDER BY date
-  `).all(userId, startDate, endDate) as unknown as { date: string; calories: number; meal_count: number }[]
+    WITH dates AS (
+      SELECT date FROM meals WHERE user_id = ? AND date BETWEEN ? AND ?
+      UNION
+      SELECT date FROM daily_water WHERE user_id = ? AND date BETWEEN ? AND ?
+    ),
+    meal_stats AS (
+      SELECT date,
+        COALESCE(SUM(calories),0) as calories,
+        COUNT(*) as meal_count
+      FROM meals WHERE user_id = ? AND date BETWEEN ? AND ?
+      GROUP BY date
+    ),
+    water_stats AS (
+      SELECT date,
+        COALESCE(water_ml, glasses * 250, 0) as water_ml,
+        COALESCE(glasses, 0) as water_glasses
+      FROM daily_water WHERE user_id = ? AND date BETWEEN ? AND ?
+    )
+    SELECT dates.date,
+      COALESCE(meal_stats.calories,0) as calories,
+      COALESCE(meal_stats.meal_count,0) as meal_count,
+      COALESCE(water_stats.water_ml,0) as water_ml,
+      COALESCE(water_stats.water_glasses,0) as water_glasses
+    FROM dates
+    LEFT JOIN meal_stats ON meal_stats.date = dates.date
+    LEFT JOIN water_stats ON water_stats.date = dates.date
+    ORDER BY dates.date
+  `).all(
+    userId, startDate, endDate,
+    userId, startDate, endDate,
+    userId, startDate, endDate,
+    userId, startDate, endDate
+  ) as unknown as DayStats[]
 }
 
 export function getMonthMealDates(userId: string, yearMonth: string) {
   return getDb().prepare(`
-    SELECT DISTINCT date FROM meals WHERE user_id = ? AND date LIKE ? ORDER BY date
-  `).all(userId, `${yearMonth}%`) as unknown as { date: string }[]
+    SELECT date FROM (
+      SELECT date FROM meals WHERE user_id = ? AND date LIKE ?
+      UNION
+      SELECT date FROM daily_water WHERE user_id = ? AND date LIKE ?
+    ) ORDER BY date
+  `).all(userId, `${yearMonth}%`, userId, `${yearMonth}%`) as unknown as { date: string }[]
 }
 
 // ─── Water queries ─────────────────────────────────────────────────────────────
 
 export function getWater(userId: string, date: string): number {
-  const row = getDb().prepare('SELECT glasses FROM daily_water WHERE user_id = ? AND date = ?').get(userId, date) as { glasses: number } | undefined
-  return row?.glasses ?? 0
+  const row = getDb().prepare('SELECT glasses, water_ml FROM daily_water WHERE user_id = ? AND date = ?').get(userId, date) as { glasses: number; water_ml: number } | undefined
+  if (!row) return 0
+  return row.glasses || Math.round((row.water_ml || 0) / 250)
+}
+
+export function getWaterMl(userId: string, date: string): number {
+  const row = getDb().prepare('SELECT glasses, water_ml FROM daily_water WHERE user_id = ? AND date = ?').get(userId, date) as { glasses: number; water_ml: number } | undefined
+  if (!row) return 0
+  return row.water_ml || (row.glasses || 0) * 250
 }
 
 export function setWater(userId: string, date: string, glasses: number) {
+  const safeGlasses = Math.max(0, Math.trunc(glasses))
+  const waterMl = safeGlasses * 250
   getDb().prepare(`
-    INSERT INTO daily_water (user_id, date, glasses) VALUES (?, ?, ?)
-    ON CONFLICT(user_id, date) DO UPDATE SET glasses = excluded.glasses
-  `).run(userId, date, glasses)
+    INSERT INTO daily_water (user_id, date, glasses, water_ml) VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id, date) DO UPDATE SET
+      glasses = excluded.glasses,
+      water_ml = excluded.water_ml
+  `).run(userId, date, safeGlasses, waterMl)
+}
+
+export function setWaterMl(userId: string, date: string, waterMl: number) {
+  const safeWaterMl = Math.max(0, Math.trunc(waterMl))
+  const glasses = Math.round(safeWaterMl / 250)
+  getDb().prepare(`
+    INSERT INTO daily_water (user_id, date, glasses, water_ml) VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id, date) DO UPDATE SET
+      glasses = excluded.glasses,
+      water_ml = excluded.water_ml
+  `).run(userId, date, glasses, safeWaterMl)
 }
 
 // ─── Recipe queries ────────────────────────────────────────────────────────────
@@ -270,6 +332,14 @@ export interface DailyStats {
   carbs: number
   fat: number
   fiber: number
+}
+
+export interface DayStats {
+  date: string
+  calories: number
+  meal_count: number
+  water_ml: number
+  water_glasses: number
 }
 
 export interface Recipe {

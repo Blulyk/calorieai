@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { getMealsByDate, getDailyStats, getWater, createMeal } from '@/lib/db'
+import { getMealsByDate, getDailyStats, getWater, getWaterMl, createMeal } from '@/lib/db'
 import { todayString } from '@/lib/nutrition'
 import { v4 as uuid } from 'uuid'
 import fs from 'fs'
@@ -123,7 +123,8 @@ export async function GET(req: Request) {
   const meals = getMealsByDate(session.userId, date)
   const stats = getDailyStats(session.userId, date)
   const water = getWater(session.userId, date)
+  const water_ml = getWaterMl(session.userId, date)
 
   const parsed = meals.map(m => ({ ...m, foods: JSON.parse(m.foods) }))
-  return NextResponse.json({ meals: parsed, stats, water, date })
+  return NextResponse.json({ meals: parsed, stats, water, water_ml, date })
 }

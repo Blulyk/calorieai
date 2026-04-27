@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react'
 import MealCard from '@/components/MealCard'
 import Link from 'next/link'
 
-interface DayData { date: string; calories: number; meal_count: number }
+interface DayData {
+  date: string
+  calories: number
+  meal_count: number
+  water_ml: number
+  water_glasses: number
+}
 interface Meal {
   id: string; name: string | null; photo_path: string | null; foods: unknown[]
   calories: number; protein: number; carbs: number; fat: number
@@ -38,6 +44,7 @@ export default function HistoryPage() {
   const [stats, setStats]               = useState<DayData[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(todayISO)
   const [dayMeals, setDayMeals]         = useState<Meal[]>([])
+  const [selectedWaterMl, setSelectedWaterMl] = useState(0)
   const [loadingMeals, setLoadingMeals] = useState(false)
   const [loading, setLoading]           = useState(true)
 
@@ -64,7 +71,11 @@ export default function HistoryPage() {
     setLoadingMeals(true)
     fetch(`/api/meals?date=${selectedDate}`)
       .then(r => r.json())
-      .then(d => { setDayMeals(d.meals || []); setLoadingMeals(false) })
+      .then(d => {
+        setDayMeals(d.meals || [])
+        setSelectedWaterMl(Number(d.water_ml ?? (d.water ?? 0) * 250) || 0)
+        setLoadingMeals(false)
+      })
   }, [selectedDate])
 
   function prevMonth() {
@@ -138,6 +149,8 @@ export default function HistoryPage() {
                 const iso      = toISO(year, month, day)
                 const s        = statsMap[iso]
                 const hasMeals = (s?.meal_count ?? 0) > 0
+                const hasWater = (s?.water_ml ?? 0) > 0
+                const hasData  = hasMeals || hasWater
                 const isToday  = iso === todayISO
                 const isSelected = iso === selectedDate
                 const over     = s ? s.calories > calGoal : false
@@ -155,23 +168,24 @@ export default function HistoryPage() {
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all"
                       style={{
                         background: isToday ? '#f97316' : 'transparent',
-                        color: isToday ? '#fff' : isSelected ? '#fb923c' : hasMeals ? '#f4f4f5' : '#52525b',
-                        fontWeight: isToday || isSelected ? '700' : hasMeals ? '600' : '400',
+                        color: isToday ? '#fff' : isSelected ? '#fb923c' : hasData ? '#f4f4f5' : '#52525b',
+                        fontWeight: isToday || isSelected ? '700' : hasData ? '600' : '400',
                       }}
                     >
                       {day}
                     </div>
-                    {/* Activity dot */}
-                    {hasMeals && (
-                      <div
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{
-                          background: over ? '#ef4444' : pct > 0.8 ? '#f97316' : '#fb923c',
-                          opacity: 0.9,
-                        }}
-                      />
-                    )}
-                    {!hasMeals && <div className="w-1.5 h-1.5" />}
+                    <div className="flex h-1.5 items-center justify-center gap-0.5">
+                      {hasMeals && (
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{
+                            background: over ? '#ef4444' : pct > 0.8 ? '#f97316' : '#fb923c',
+                            opacity: 0.9,
+                          }}
+                        />
+                      )}
+                      {hasWater && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
+                    </div>
                   </button>
                 )
               })}
@@ -190,6 +204,10 @@ export default function HistoryPage() {
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-brand-500 opacity-90" />
                 <span className="text-[11px] text-zinc-500">Hoy</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-sky-400" />
+                <span className="text-[11px] text-zinc-500">Agua</span>
               </div>
             </div>
           </div>
@@ -228,6 +246,24 @@ export default function HistoryPage() {
                   </div>
                 </div>
               )}
+
+              <div className="water-summary glass rounded-2xl px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-100/55">Agua</p>
+                    <p className="mt-1 text-2xl font-bold text-zinc-100 tabular-nums">{selectedWaterMl} <span className="text-sm text-zinc-500">ml</span></p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full border border-sky-300/25 bg-sky-400/10 flex items-center justify-center text-sm font-bold text-sky-100">
+                    {Math.round(Math.min(100, selectedWaterMl / 2500 * 100))}%
+                  </div>
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+                  <div
+                    className="h-full rounded-full bg-sky-400 transition-all"
+                    style={{ width: `${Math.min(100, selectedWaterMl / 2500 * 100)}%` }}
+                  />
+                </div>
+              </div>
 
               {/* Meals */}
               {loadingMeals ? (

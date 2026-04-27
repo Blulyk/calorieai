@@ -15,7 +15,7 @@ interface Meal {
 }
 interface DailyStats { calories: number; protein: number; carbs: number; fat: number }
 interface Settings { calorie_goal: number | null; gemini_api_key: string | null }
-interface WeekDay { date: string; calories: number; meal_count: number }
+interface WeekDay { date: string; calories: number; meal_count: number; water_ml: number; water_glasses: number }
 
 function useCountUp(target: number, duration = 700, delay = 0) {
   const [value, setValue] = useState(0)

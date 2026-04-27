@@ -24,7 +24,7 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
     await fetch('/api/meals/water', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, glasses: next }),
+      body: JSON.stringify({ date, glasses: next, water_ml: next * ML_PER_GLASS }),
     })
     setSaving(false)
     onChange?.(next)
@@ -34,7 +34,7 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
   const pct = Math.min(100, (current / GOAL_GLASSES) * 100)
 
   return (
-    <section className="glass liquid-card p-4">
+    <section className="water-panel glass liquid-card p-4">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">Hidratación</p>
@@ -45,7 +45,7 @@ export default function WaterTracker({ glasses, date, onChange }: Props) {
         </div>
       </div>
 
-      <div className="relative h-3 overflow-hidden rounded-full bg-white/8">
+      <div className="water-progress relative h-3 overflow-hidden rounded-full bg-white/8">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
