@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getRecipes, createRecipe, getSettings } from '@/lib/db'
 import { analyzeRecipe } from '@/lib/gemini'
+import { saveOptimizedUpload } from '@/lib/uploads'
 import { v4 as uuid } from 'uuid'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
 
 export async function GET() {
   const session = await getSession()
@@ -45,13 +44,7 @@ export async function POST(req: Request) {
       if (!photoFile.type.startsWith('image/')) {
         return NextResponse.json({ error: 'La foto debe ser una imagen' }, { status: 400 })
       }
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-      await mkdir(uploadsDir, { recursive: true })
-      const ext = photoFile.name.split('.').pop() || 'jpg'
-      const filename = `recipe_${uuid()}.${ext}`
-      const buffer = Buffer.from(await photoFile.arrayBuffer())
-      await writeFile(path.join(uploadsDir, filename), buffer)
-      photoPath = `/uploads/${filename}`
+      photoPath = await saveOptimizedUpload(photoFile, 'recipe')
     }
 
     const id = uuid()

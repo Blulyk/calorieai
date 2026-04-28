@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getMealsByDate, getDailyStats, getWater, getWaterMl, createMeal } from '@/lib/db'
 import { todayString } from '@/lib/nutrition'
+import { saveOptimizedUpload } from '@/lib/uploads'
 import { v4 as uuid } from 'uuid'
-import fs from 'fs'
-import path from 'path'
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
@@ -19,17 +18,6 @@ function normalizeMealType(value: unknown): MealType {
 function asNumber(value: unknown): number {
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
-}
-
-function saveImage(file: File): string {
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-  fs.mkdirSync(uploadsDir, { recursive: true })
-
-  const ext = file.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg'
-  const filename = `${uuid()}.${ext}`
-  const target = path.join(uploadsDir, filename)
-
-  return target
 }
 
 export async function POST(req: Request) {
@@ -82,18 +70,13 @@ export async function POST(req: Request) {
 
     const analysis = JSON.parse(rawAnalysis)
 
-    // Save photo to disk
-    const bytes    = await file.arrayBuffer()
-    const buffer   = Buffer.from(bytes)
-    const target   = saveImage(file)
-    const filename = path.basename(target)
-    fs.writeFileSync(target, buffer)
+    const photoPath = await saveOptimizedUpload(file, 'meal')
 
     const meal = {
       id:         uuid(),
       user_id:    session.userId,
       date,
-      photo_path: `/uploads/${filename}`,
+      photo_path: photoPath,
       name:       analysis.foods.map((f: { name: string }) => f.name).join(', '),
       foods:      JSON.stringify(analysis.foods),
       calories:   analysis.total_calories,

@@ -40,16 +40,16 @@ export default function BottomNav() {
       className="glass-nav fixed z-50"
       style={{
         bottom: 'calc(env(safe-area-inset-bottom) + 12px)',
-        left: '14px',
-        right: '14px',
+        left: '12px',
+        right: '12px',
         maxWidth: '520px',
         marginLeft: 'auto',
         marginRight: 'auto',
-        height: '64px',
+        height: '68px',
         borderRadius: '9999px',
       }}
     >
-      <div className="flex h-full items-center justify-around px-2">
+      <div className="flex h-full items-center justify-between px-2">
         {NAV.map(item => {
           const active = pathname === item.href
           const isLog = item.special
@@ -58,16 +58,16 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-full transition-all active:scale-95 ${
+              className={`relative flex h-[56px] w-[58px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-full transition-all active:scale-95 ${
                 active && !isLog ? 'text-white' : 'text-zinc-400'
               }`}
             >
               {active && !isLog && (
-                <span className="absolute inset-x-2 top-1 bottom-1 rounded-full bg-white/10" />
+                <span className="absolute inset-0 rounded-full bg-white/10 ring-1 ring-white/12" />
               )}
 
               {isLog ? (
-                <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-[#0071e3] text-white">
+                <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-[#0071e3] text-white ${active ? 'ring-4 ring-[#0071e3]/24' : ''}`}>
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} viewBox="0 0 24 24">
                     <path d={item.icon} />
                   </svg>

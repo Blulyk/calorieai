@@ -137,7 +137,7 @@ export default function Dashboard() {
         <section className="text-center">
           <p className="text-sm font-medium text-white/40">{monthLabel}</p>
           <div className="mt-1 flex items-baseline justify-center gap-2">
-            <span className="text-[4.8rem] font-bold leading-none tracking-normal text-white/90 tabular-nums">
+            <span className="max-w-full text-[4.15rem] font-bold leading-none tracking-normal text-white/90 tabular-nums">
               {animatedCal.toLocaleString('es-ES')}
             </span>
             <span className="text-lg font-semibold text-white/38">kcal</span>

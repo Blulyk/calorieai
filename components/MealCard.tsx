@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useState } from 'react'
 
 interface FoodItem {
@@ -38,7 +37,13 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
     <article className="glass liquid-card animate-fadeInUp overflow-hidden" style={{ animationDelay: `${index * 0.06}s` }}>
       {meal.photo_path && (
         <div className="relative h-48 w-full">
-          <Image src={meal.photo_path} alt={meal.name || 'Foto comida'} fill className="object-cover" sizes="(max-width: 768px) 100vw, 500px" />
+          <img
+            src={meal.photo_path}
+            alt={meal.name || 'Foto comida'}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/18 to-white/8" />
           <div className="absolute left-4 top-4 glass-pill rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: meta.color }}>
             {meta.label}
@@ -48,8 +53,8 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
               <h3 className="line-clamp-1 text-lg font-bold leading-tight text-white">{meal.name || 'Comida'}</h3>
               <p className="mt-1 text-xs font-medium text-white/55">{time}</p>
             </div>
-            <div className="glass-pill rounded-2xl px-3 py-2 text-right">
-              <p className="text-2xl font-bold leading-none text-white tabular-nums">{Math.round(meal.calories)}</p>
+            <div className="metric-pill glass-pill rounded-2xl px-3 py-2 text-right">
+              <p className="metric-pill-value font-bold text-white">{Math.round(meal.calories)}</p>
               <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/48">kcal</p>
             </div>
           </div>
@@ -68,8 +73,8 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
                 <p className="mt-0.5 text-xs text-white/45">{meta.label} · {time}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold leading-none text-white tabular-nums">{Math.round(meal.calories)}</p>
+            <div className="metric-pill text-right">
+              <p className="metric-pill-value font-bold text-white">{Math.round(meal.calories)}</p>
               <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/38">kcal</p>
             </div>
           </div>

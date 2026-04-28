@@ -42,6 +42,18 @@
       linear-gradient(180deg, #000 0%, #050505 34%, #111 100%);
   }
 
+  .app-shell {
+    --bottom-nav-space: calc(108px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell > .liquid-page {
+    padding-bottom: var(--bottom-nav-space) !important;
+  }
+
+  .bottom-sheet-scroll {
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .glass,
   .glass-strong,
   .glass-btn,
@@ -147,6 +159,20 @@
 
   .water-progress {
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+
+  .metric-pill {
+    min-width: 86px;
+    max-width: 112px;
+  }
+
+  .metric-pill-value {
+    display: block;
+    width: 100%;
+    font-size: 1.35rem;
+    line-height: 1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
   .specular::after { display: none; }

@@ -129,7 +129,7 @@ export default function RecetarioPage() {
           <div key={recipe.id} className="glass rounded-2xl overflow-hidden animate-fade-in">
             {recipe.photo_path && (
               <div className="relative w-full h-44">
-                <Image src={recipe.photo_path} alt={recipe.name} fill className="object-cover" sizes="500px" />
+                <img src={recipe.photo_path} alt={recipe.name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <div className="absolute bottom-3 left-4">
                   <p className="font-bold text-white text-lg">{recipe.name}</p>
@@ -204,8 +204,8 @@ export default function RecetarioPage() {
       <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f && photoTarget.current) uploadDishPhoto(photoTarget.current, f); e.target.value = '' }} />
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => { if (e.target === e.currentTarget) setShowForm(false) }}>
-          <div className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden animate-slide-up" style={{ background: 'linear-gradient(180deg,rgba(25,25,45,0.98) 0%,rgba(18,18,32,1) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none', maxHeight: '92vh', overflowY: 'auto' }}>
+        <div className="fixed inset-0 z-[70] flex items-end" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => { if (e.target === e.currentTarget) setShowForm(false) }}>
+          <div className="bottom-sheet-scroll w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden animate-slide-up" style={{ background: 'linear-gradient(180deg,rgba(25,25,45,0.98) 0%,rgba(18,18,32,1) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none', maxHeight: '92vh', overflowY: 'auto' }}>
             <div className="px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
               <h2 className="text-lg font-bold text-zinc-100">Nueva receta</h2>
               <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
