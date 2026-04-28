@@ -36,22 +36,23 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
   return (
     <article className="glass liquid-card animate-fadeInUp overflow-hidden" style={{ animationDelay: `${index * 0.06}s` }}>
       {meal.photo_path && (
-        <div className="relative h-48 w-full">
+        <div className="relative h-48 w-full overflow-hidden">
           <img
             src={meal.photo_path}
             alt={meal.name || 'Foto comida'}
-            className="h-full w-full object-cover"
+            className="relative z-0 h-full w-full object-cover"
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/18 to-white/8" />
-          <div className="absolute left-4 top-4 glass-pill rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: meta.color }}>
-            {meta.label}
-          </div>
-          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/88 via-black/18 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4 z-20 flex items-end justify-between gap-3">
             <div className="min-w-0">
               <h3 className="line-clamp-1 text-lg font-bold leading-tight text-white">{meal.name || 'Comida'}</h3>
-              <p className="mt-1 text-xs font-medium text-white/55">{time}</p>
+              <p className="mt-1 text-xs font-medium text-white/60">
+                <span style={{ color: meta.color }}>{meta.label}</span>
+                <span className="px-1.5 text-white/32">·</span>
+                {time}
+              </p>
             </div>
             <div className="metric-pill glass-pill rounded-2xl px-3 py-2 text-right">
               <p className="metric-pill-value font-bold text-white">{Math.round(meal.calories)}</p>
@@ -61,7 +62,7 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
         </div>
       )}
 
-      <div className="p-4">
+      <div className="relative z-30 p-4" style={meal.photo_path ? { background: '#1d1d1f', borderTop: '1px solid rgba(255,255,255,0.08)' } : undefined}>
         {!meal.photo_path && (
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
