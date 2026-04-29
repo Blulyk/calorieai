@@ -18,9 +18,10 @@ const MEAL_LABELS: Record<string, string> = {
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack']
 const RING_START_DEG = -90
-const RING_SWEEP_DEG = 356
-const RING_VISIBLE_GAP_DEG = 4
+const RING_SWEEP_DEG = 360
+const RING_VISIBLE_GAP_PX = 6
 const FALLBACK_MEAL_COLOR = '#8c8278'
+const RING_REMAINING_COLOR = '#a99b8a'
 
 function getMealColor(mealType: string) {
   return MEAL_COLORS[mealType] ?? FALLBACK_MEAL_COLOR
@@ -59,21 +60,37 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
     .filter((s): s is CalorieSegment => !!s && s.calories > 0)
   const dominant = sorted.length > 0 ? sorted.reduce((a, b) => a.calories >= b.calories ? a : b) : null
 
-  const progressDeg = consumed > 0
-    ? (goal > 0 ? Math.min(consumed / goal, 1) : 1) * RING_SWEEP_DEG
-    : 0
-  const gapCount = Math.max(sorted.length - 1, 0)
+  const remainingCalories = goal > consumed ? goal - consumed : 0
+  const ringTotal = goal > 0 && !over ? goal : Math.max(consumed, 1)
+  const ringItems = [
+    ...sorted.map(segment => ({
+      id: segment.mealType,
+      mealType: segment.mealType,
+      value: segment.calories,
+      color: getMealColor(segment.mealType),
+      isRemaining: false,
+    })),
+    ...(remainingCalories > 0 ? [{
+      id: 'remaining',
+      mealType: 'remaining',
+      value: remainingCalories,
+      color: RING_REMAINING_COLOR,
+      isRemaining: true,
+    }] : []),
+  ]
+  const gapCount = ringItems.length
   const roundCapDeg = (strokeW / radius) * (180 / Math.PI)
-  const idealGapDeg = roundCapDeg + RING_VISIBLE_GAP_DEG
-  const maxGapDeg = gapCount > 0 ? progressDeg / (gapCount + sorted.length) : 0
+  const visibleGapDeg = (RING_VISIBLE_GAP_PX / radius) * (180 / Math.PI)
+  const idealGapDeg = roundCapDeg + visibleGapDeg
+  const maxGapDeg = gapCount > 0 ? RING_SWEEP_DEG / (gapCount + ringItems.length) : 0
   const gapDeg = gapCount > 0 ? Math.min(idealGapDeg, maxGapDeg) : 0
-  const drawableDeg = Math.max(progressDeg - gapCount * gapDeg, 0)
+  const drawableDeg = Math.max(RING_SWEEP_DEG - gapCount * gapDeg, 0)
   let arcCursorDeg = RING_START_DEG
-  const mealArcs = sorted
-    .map(segment => {
-      const deg = consumed > 0 ? drawableDeg * (segment.calories / consumed) : 0
+  const ringArcs = ringItems
+    .map(item => {
+      const deg = drawableDeg * (item.value / ringTotal)
       const arc = {
-        ...segment,
+        ...item,
         deg,
         startDeg: arcCursorDeg,
       }
@@ -118,10 +135,10 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             cy={cy}
             r={radius}
             fill="none"
-            stroke="rgba(70,75,76,0.48)"
-            strokeWidth={strokeW * 0.9}
+            stroke="rgba(255,255,255,0.06)"
+            strokeWidth={strokeW * 0.78}
             strokeLinecap="round"
-            opacity="0.72"
+            opacity="0.62"
           />
           <circle
             cx={cx}
@@ -132,12 +149,12 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             strokeWidth="1"
           />
 
-          {mealArcs.map((arc, idx) => {
+          {ringArcs.map((arc, idx) => {
             const segLen = (arc.deg / 360) * circumference
-            const color = getMealColor(arc.mealType)
+            const color = arc.color
             return (
               <circle
-                key={arc.mealType}
+                key={arc.id}
                 cx={cx}
                 cy={cy}
                 r={radius}
@@ -148,7 +165,8 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
                 transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
                 strokeLinecap="round"
                 style={{
-                  filter: `drop-shadow(0 0 14px ${color}70)`,
+                  filter: arc.isRemaining ? `drop-shadow(0 0 10px ${color}42)` : `drop-shadow(0 0 14px ${color}70)`,
+                  opacity: arc.isRemaining ? 0.82 : 1,
                   transition: `stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1) ${idx * 80}ms`,
                 }}
               />
