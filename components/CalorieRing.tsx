@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 
 const MEAL_COLORS: Record<string, string> = {
-  breakfast: '#8a7864',
-  lunch: '#4f94df',
-  dinner: '#786b5e',
-  snack: '#a08d77',
+  breakfast: '#9b8a78',
+  lunch: '#4f8fda',
+  dinner: '#756a5f',
+  snack: '#b6a28c',
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -17,11 +17,11 @@ const MEAL_LABELS: Record<string, string> = {
 }
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack']
-const GAP_DEG = 13
-const ARC_START_DEG = 35
-const ARC_SPAN_DEG = 285
-const MAX_CATEGORY_DEG = 156
-const MIN_CATEGORY_DEG = 22
+const MAIN_START_DEG = -38
+const MAIN_ARC_DEG = 202
+const SIDE_START_DEG = 168
+const SIDE_ARC_DEG = 132
+const SIDE_GAP_DEG = 13
 
 export interface CalorieSegment {
   mealType: string
@@ -56,20 +56,21 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
     .filter((s): s is CalorieSegment => !!s && s.calories > 0)
   const dominant = sorted.length > 0 ? sorted.reduce((a, b) => a.calories >= b.calories ? a : b) : null
 
-  const totalArcValue = Math.max(consumed, goal * 0.01)
-  let cursorDeg = ARC_START_DEG
-  const arcs = sorted.map((seg, i) => {
-    const remainingSegments = sorted.length - i - 1
-    const remainingGap = remainingSegments * GAP_DEG
-    const availableSpan = Math.max(0, ARC_SPAN_DEG - remainingGap)
-    const rawDeg = (seg.calories / totalArcValue) * availableSpan
-    const deg = Math.min(MAX_CATEGORY_DEG, Math.max(MIN_CATEGORY_DEG, rawDeg))
-    const startDeg = cursorDeg
-    cursorDeg += deg + GAP_DEG
+  const sideSegments = sorted.filter(seg => seg.mealType !== dominant?.mealType)
+  const sideTotal = Math.max(sideSegments.reduce((sum, seg) => sum + seg.calories, 0), 1)
+  const sideAvailable = Math.max(0, SIDE_ARC_DEG - Math.max(0, sideSegments.length - 1) * SIDE_GAP_DEG)
+  let sideCursor = SIDE_START_DEG
+  const sideArcs = sideSegments.map(seg => {
+    const deg = sideSegments.length === 1
+      ? Math.min(62, Math.max(32, sideAvailable))
+      : Math.min(54, Math.max(24, (seg.calories / sideTotal) * sideAvailable))
+    const startDeg = sideCursor
+    sideCursor += deg + SIDE_GAP_DEG
     return { ...seg, startDeg, deg }
   })
 
-  const dominantColor = dominant ? (MEAL_COLORS[dominant.mealType] || '#38bdf8') : '#38bdf8'
+  const mainColor = '#4f8fda'
+  const dominantColor = dominant ? (dominant.mealType === 'lunch' ? mainColor : MEAL_COLORS[dominant.mealType] || mainColor) : mainColor
   const glowColor = over ? '#ef4444' : dominantColor
 
   return (
@@ -105,11 +106,11 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             cy={cy}
             r={radius}
             fill="none"
-            stroke="rgba(95,91,84,0.34)"
+            stroke="rgba(94,88,80,0.34)"
             strokeWidth={strokeW * 0.95}
             strokeLinecap="round"
-            strokeDasharray={`${(ARC_SPAN_DEG / 360) * circumference} ${circumference}`}
-            transform={`rotate(${ARC_START_DEG} ${cx} ${cy})`}
+            strokeDasharray={`${((MAIN_ARC_DEG + SIDE_ARC_DEG) / 360) * circumference} ${circumference}`}
+            transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
           />
           <circle
             cx={cx}
@@ -128,8 +129,8 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
               fill="none"
               stroke="#ef4444"
               strokeWidth={strokeW}
-              strokeDasharray={ready ? `${circumference} 0` : `0 ${circumference}`}
-              transform={`rotate(${ARC_START_DEG} ${cx} ${cy})`}
+              strokeDasharray={ready ? `${(MAIN_ARC_DEG / 360) * circumference} ${circumference}` : `0 ${circumference}`}
+              transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
               strokeLinecap="round"
               style={{
                 filter: 'url(#calorie-ring-glow)',
@@ -137,29 +138,50 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
               }}
             />
           ) : (
-            arcs.map((arc, idx) => {
-              if (arc.deg <= 0) return null
-              const segLen = (arc.deg / 360) * circumference
-              const color = MEAL_COLORS[arc.mealType] || '#38bdf8'
-              return (
+            <>
+              {dominant && (
                 <circle
-                  key={arc.mealType}
+                  key="dominant-main-arc"
                   cx={cx}
                   cy={cy}
                   r={radius}
                   fill="none"
-                  stroke={color}
+                  stroke={mainColor}
                   strokeWidth={strokeW}
-                  strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
-                  transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
+                  strokeDasharray={ready ? `${(MAIN_ARC_DEG / 360) * circumference} ${circumference}` : `0 ${circumference}`}
+                  transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
                   strokeLinecap="round"
                   style={{
-                    filter: `drop-shadow(0 0 12px ${color}8c)`,
-                    transition: `stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1) ${idx * 80}ms`,
+                    filter: `drop-shadow(0 0 16px ${mainColor}78)`,
+                    transition: 'stroke-dasharray 0.95s cubic-bezier(0.16,1,0.3,1)',
                   }}
                 />
-              )
-            })
+              )}
+
+              {sideArcs.map((arc, idx) => {
+                const segLen = (arc.deg / 360) * circumference
+                const color = MEAL_COLORS[arc.mealType] || '#9b8a78'
+                return (
+                  <circle
+                    key={arc.mealType}
+                    cx={cx}
+                    cy={cy}
+                    r={radius}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={strokeW * 0.9}
+                    strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
+                    transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
+                    strokeLinecap="round"
+                    style={{
+                      filter: `drop-shadow(0 0 10px ${color}66)`,
+                      opacity: 0.92,
+                      transition: `stroke-dasharray 0.85s cubic-bezier(0.16,1,0.3,1) ${120 + idx * 80}ms`,
+                    }}
+                  />
+                )
+              })}
+            </>
           )}
         </svg>
 
@@ -193,9 +215,9 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
         </div>
       </div>
 
-      {arcs.length > 0 && (
+      {sorted.length > 0 && (
         <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
-          {arcs.map(arc => (
+          {sorted.map(arc => (
             <div key={arc.mealType} className="flex items-center gap-1.5">
               <div
                 className="h-2 w-2 flex-shrink-0 rounded-full shadow-[0_0_10px_currentColor]"
