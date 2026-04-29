@@ -13,6 +13,7 @@ interface FoodItem {
 interface AnalysisResult {
   foods: FoodItem[]; total_calories: number; total_protein: number
   total_carbs: number; total_fat: number; confidence: string; notes: string
+  model_used?: string; fallback_used?: boolean
 }
 interface AnalyzeErrorResponse {
   error?: string
@@ -27,6 +28,12 @@ const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
   { value: 'dinner',    label: 'Cena',    icon: '🌙'  },
   { value: 'snack',     label: 'Tentempié',     icon: '🍎'  },
 ]
+
+const MODEL_LABELS: Record<string, string> = {
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
+}
 
 function guessCurrentMeal(): MealType {
   const h = new Date().getHours()
@@ -43,6 +50,11 @@ function wait(ms: number) {
 function retryDelay(attempt: number, retryAfterSeconds?: number | null) {
   if (retryAfterSeconds && retryAfterSeconds > 0) return Math.min(retryAfterSeconds * 1000, 30000)
   return Math.min(4000 + attempt * 2000, 18000)
+}
+
+function modelLabel(model?: string) {
+  if (!model) return 'Gemini'
+  return MODEL_LABELS[model] || model
 }
 
 export default function LogPage() {
@@ -272,9 +284,16 @@ export default function LogPage() {
               <div className="glass rounded-3xl overflow-hidden animate-slide-up">
                 {/* Result header */}
                 <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'linear-gradient(135deg, rgba(249,115,22,0.09), rgba(249,115,22,0.03))' }}>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-4 gap-3">
                     <h2 className="text-zinc-100 font-bold text-lg">Análisis IA</h2>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 glass-pill'}`}>
+                    {result.model_used && (
+                      <p className={`min-w-0 flex-1 text-xs font-medium ${result.fallback_used ? 'text-sky-300' : 'text-zinc-500'}`}>
+                        {result.fallback_used
+                          ? `Modelo alternativo usado: ${modelLabel(result.model_used)}`
+                          : `Modelo usado: ${modelLabel(result.model_used)}`}
+                      </p>
+                    )}
+                    <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border ${CONF_STYLE[result.confidence] || 'text-zinc-400 glass-pill'}`}>
                       {result.confidence === 'high' ? 'alta' : result.confidence === 'medium' ? 'media' : 'baja'} confianza
                     </span>
                   </div>
