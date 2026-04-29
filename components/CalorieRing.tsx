@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 
 const MEAL_COLORS: Record<string, string> = {
-  breakfast: '#ffb84d',
-  lunch: '#38bdf8',
-  dinner: '#8b9aa1',
-  snack: '#fb7185',
+  breakfast: '#8a7864',
+  lunch: '#4f94df',
+  dinner: '#786b5e',
+  snack: '#a08d77',
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -17,7 +17,11 @@ const MEAL_LABELS: Record<string, string> = {
 }
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack']
-const GAP_DEG = 8
+const GAP_DEG = 13
+const ARC_START_DEG = 35
+const ARC_SPAN_DEG = 285
+const MAX_CATEGORY_DEG = 156
+const MIN_CATEGORY_DEG = 22
 
 export interface CalorieSegment {
   mealType: string
@@ -52,15 +56,17 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
     .filter((s): s is CalorieSegment => !!s && s.calories > 0)
   const dominant = sorted.length > 0 ? sorted.reduce((a, b) => a.calories >= b.calories ? a : b) : null
 
-  let cumFrac = 0.02
+  const totalArcValue = Math.max(consumed, goal * 0.01)
+  let cursorDeg = ARC_START_DEG
   const arcs = sorted.map((seg, i) => {
-    const rawFrac = goal > 0 ? seg.calories / goal : 0
-    const isLast = i === sorted.length - 1
-    const gapFrac = sorted.length > 1 && !isLast ? GAP_DEG / 360 : 0
-    const frac = Math.max(0, Math.min(rawFrac, 1 - cumFrac) - gapFrac)
-    const startFrac = cumFrac
-    cumFrac += frac + gapFrac
-    return { ...seg, startFrac, frac }
+    const remainingSegments = sorted.length - i - 1
+    const remainingGap = remainingSegments * GAP_DEG
+    const availableSpan = Math.max(0, ARC_SPAN_DEG - remainingGap)
+    const rawDeg = (seg.calories / totalArcValue) * availableSpan
+    const deg = Math.min(MAX_CATEGORY_DEG, Math.max(MIN_CATEGORY_DEG, rawDeg))
+    const startDeg = cursorDeg
+    cursorDeg += deg + GAP_DEG
+    return { ...seg, startDeg, deg }
   })
 
   const dominantColor = dominant ? (MEAL_COLORS[dominant.mealType] || '#38bdf8') : '#38bdf8'
@@ -99,11 +105,11 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             cy={cy}
             r={radius}
             fill="none"
-            stroke="rgba(91,107,111,0.34)"
-            strokeWidth={strokeW}
+            stroke="rgba(95,91,84,0.34)"
+            strokeWidth={strokeW * 0.95}
             strokeLinecap="round"
-            strokeDasharray={`${circumference * 0.88} ${circumference}`}
-            transform={`rotate(-76 ${cx} ${cy})`}
+            strokeDasharray={`${(ARC_SPAN_DEG / 360) * circumference} ${circumference}`}
+            transform={`rotate(${ARC_START_DEG} ${cx} ${cy})`}
           />
           <circle
             cx={cx}
@@ -123,7 +129,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
               stroke="#ef4444"
               strokeWidth={strokeW}
               strokeDasharray={ready ? `${circumference} 0` : `0 ${circumference}`}
-              transform={`rotate(-82 ${cx} ${cy})`}
+              transform={`rotate(${ARC_START_DEG} ${cx} ${cy})`}
               strokeLinecap="round"
               style={{
                 filter: 'url(#calorie-ring-glow)',
@@ -132,9 +138,8 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             />
           ) : (
             arcs.map((arc, idx) => {
-              if (arc.frac <= 0) return null
-              const startDeg = arc.startFrac * 360 - 82
-              const segLen = arc.frac * circumference
+              if (arc.deg <= 0) return null
+              const segLen = (arc.deg / 360) * circumference
               const color = MEAL_COLORS[arc.mealType] || '#38bdf8'
               return (
                 <circle
@@ -146,7 +151,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
                   stroke={color}
                   strokeWidth={strokeW}
                   strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
-                  transform={`rotate(${startDeg} ${cx} ${cy})`}
+                  transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
                   strokeLinecap="round"
                   style={{
                     filter: `drop-shadow(0 0 12px ${color}8c)`,
