@@ -133,16 +133,6 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
           <circle
             cx={cx}
             cy={cy}
-            r={radius}
-            fill="none"
-            stroke="rgba(255,255,255,0.06)"
-            strokeWidth={strokeW * 0.78}
-            strokeLinecap="round"
-            opacity="0.62"
-          />
-          <circle
-            cx={cx}
-            cy={cy}
             r={radius - strokeW * 0.74}
             fill="none"
             stroke="rgba(255,255,255,0.08)"
