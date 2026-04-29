@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getSettings } from '@/lib/db'
-import { analyzeFood } from '@/lib/gemini'
+import { GeminiApiError, analyzeFood } from '@/lib/gemini'
 
 export async function POST(req: Request) {
   try {
@@ -27,8 +27,21 @@ export async function POST(req: Request) {
     const analysis = await analyzeFood(settings.gemini_api_key, base64, file.type)
     return NextResponse.json({ analysis })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Analysis failed'
-    const status  = message.includes('429') ? 429 : 422
-    return NextResponse.json({ error: message }, { status })
+    if (err instanceof GeminiApiError) {
+      return NextResponse.json({
+        error: err.message,
+        code: err.code,
+        retryable: err.retryable,
+        retry_after_seconds: err.retryAfterSeconds,
+      }, { status: err.code })
+    }
+
+    const message = err instanceof Error ? err.message : 'No se pudo completar el analisis.'
+    return NextResponse.json({
+      error: message,
+      code: 422,
+      retryable: false,
+      retry_after_seconds: null,
+    }, { status: 422 })
   }
 }

@@ -14,6 +14,12 @@ interface AnalysisResult {
   foods: FoodItem[]; total_calories: number; total_protein: number
   total_carbs: number; total_fat: number; confidence: string; notes: string
 }
+interface AnalyzeErrorResponse {
+  error?: string
+  code?: number
+  retryable?: boolean
+  retry_after_seconds?: number | null
+}
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
   { value: 'breakfast', label: 'Desayuno', icon: '🌅' },
@@ -30,10 +36,20 @@ function guessCurrentMeal(): MealType {
   return 'snack'
 }
 
+function wait(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function retryDelay(attempt: number, retryAfterSeconds?: number | null) {
+  if (retryAfterSeconds && retryAfterSeconds > 0) return Math.min(retryAfterSeconds * 1000, 30000)
+  return Math.min(4000 + attempt * 2000, 18000)
+}
+
 export default function LogPage() {
   const router = useRouter()
   const fileRef   = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
+  const analyzeRunRef = useRef(0)
 
   const [preview,  setPreview]  = useState<string | null>(null)
   const [file,     setFile]     = useState<File | null>(null)
@@ -41,17 +57,61 @@ export default function LogPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [result,   setResult]   = useState<AnalysisResult | null>(null)
   const [error,    setError]    = useState('')
+  const [analysisStatus, setAnalysisStatus] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
   const [saving,   setSaving]   = useState(false)
 
   const handleFile = useCallback((f: File) => {
     if (!f.type.startsWith('image/')) { setError('Selecciona una imagen'); return }
+    analyzeRunRef.current += 1
     setFile(f); setResult(null); setError('')
+    setAnalysisStatus(''); setRetryCount(0)
     const reader = new FileReader()
     reader.onloadend = () => setPreview(reader.result as string)
     reader.readAsDataURL(f)
   }, [])
 
   async function analyze() {
+    if (!file) return
+    const runId = analyzeRunRef.current + 1
+    analyzeRunRef.current = runId
+    setAnalyzing(true); setError(''); setAnalysisStatus('Analizando la foto con Gemini...'); setRetryCount(0)
+    let attempt = 0
+    try {
+      while (analyzeRunRef.current === runId) {
+        attempt += 1
+        const form = new FormData()
+        form.append('image', file)
+        const res  = await fetch('/api/analyze', { method: 'POST', body: form })
+        const data = await res.json()
+
+        if (res.ok) {
+          setResult(data.analysis)
+          setAnalysisStatus('')
+          return
+        }
+
+        const apiError = data as AnalyzeErrorResponse
+        if (apiError.retryable && apiError.code === 503) {
+          setRetryCount(attempt)
+          setAnalysisStatus(`Mucha demanda en Gemini. Reintentando automaticamente... intento ${attempt + 1}`)
+          await wait(retryDelay(attempt, apiError.retry_after_seconds))
+          continue
+        }
+
+        setError(apiError.error || 'Analisis fallido')
+        setAnalysisStatus('')
+        return
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Analisis fallido')
+      setAnalysisStatus('')
+    } finally {
+      if (analyzeRunRef.current === runId) setAnalyzing(false)
+    }
+  }
+
+  async function analyzeOnce() {
     if (!file) return
     setAnalyzing(true); setError('')
     try {
@@ -197,6 +257,15 @@ export default function LogPage() {
                   <><span className="text-lg">🤖</span> Analizar comida</>
                 )}
               </button>
+            )}
+
+            {analyzing && analysisStatus && (
+              <div className="glass rounded-2xl px-4 py-3 text-sm font-medium text-sky-100">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-sky-400" />
+                  <p>{analysisStatus}</p>
+                </div>
+              </div>
             )}
 
             {result && (

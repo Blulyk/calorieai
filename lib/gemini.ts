@@ -35,6 +35,71 @@ export interface CalorieGoalResult {
   tips: string[]
 }
 
+export class GeminiApiError extends Error {
+  code: number
+  retryAfterSeconds: number | null
+  retryable: boolean
+
+  constructor(message: string, code: number, retryAfterSeconds: number | null = null, retryable = false) {
+    super(message)
+    this.name = 'GeminiApiError'
+    this.code = code
+    this.retryAfterSeconds = retryAfterSeconds
+    this.retryable = retryable
+  }
+}
+
+function parseRetryDelaySeconds(message: string): number | null {
+  const retryInfo = message.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/i)
+  if (retryInfo) return Math.ceil(Number(retryInfo[1]))
+
+  const retryAfter = message.match(/retry(?:\s|-)?after[^\d]*(\d+)\s*(s|sec|second|seconds|min|minute|minutes)?/i)
+  if (!retryAfter) return null
+
+  const amount = Number(retryAfter[1])
+  if (!Number.isFinite(amount)) return null
+  const unit = retryAfter[2]?.toLowerCase() || 'seconds'
+  return unit.startsWith('min') ? amount * 60 : amount
+}
+
+function extractGeminiCode(message: string): number {
+  const explicit = message.match(/\[(\d{3})\s+[^\]]+\]/)
+  if (explicit) return Number(explicit[1])
+
+  const status = message.match(/\b(429|503|500|502|504|400|401|403)\b/)
+  return status ? Number(status[1]) : 422
+}
+
+function humanizeGeminiError(err: unknown): GeminiApiError {
+  const raw = err instanceof Error ? err.message : String(err)
+  const code = extractGeminiCode(raw)
+  const retryAfterSeconds = parseRetryDelaySeconds(raw)
+
+  if (code === 503) {
+    return new GeminiApiError(
+      '503: Mucha demanda en Gemini. Reintentando automaticamente.',
+      503,
+      retryAfterSeconds,
+      true
+    )
+  }
+
+  if (code === 429) {
+    const wait = retryAfterSeconds
+      ? ` Vuelve a intentarlo en ${formatRetryDelay(retryAfterSeconds)}.`
+      : ' Vuelve a intentarlo cuando Google restablezca tu cuota.'
+    return new GeminiApiError(`429: Has alcanzado el limite de uso.${wait}`, 429, retryAfterSeconds, false)
+  }
+
+  return new GeminiApiError(`${code}: No se pudo completar el analisis. Intentalo de nuevo.`, code, retryAfterSeconds, false)
+}
+
+export function formatRetryDelay(seconds: number): string {
+  if (seconds < 60) return `${seconds} segundo${seconds === 1 ? '' : 's'}`
+  const minutes = Math.ceil(seconds / 60)
+  return `${minutes} minuto${minutes === 1 ? '' : 's'}`
+}
+
 const FOOD_ANALYSIS_PROMPT = `You are a professional nutritionist AI. Analyze this food image and return a precise nutritional breakdown.
 
 Return ONLY valid JSON with this exact structure (no markdown, no explanation):
@@ -72,10 +137,15 @@ export async function analyzeFood(apiKey: string, imageBase64: string, mimeType:
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-  const result = await model.generateContent([
-    FOOD_ANALYSIS_PROMPT,
-    { inlineData: { data: imageBase64, mimeType } },
-  ])
+  let result
+  try {
+    result = await model.generateContent([
+      FOOD_ANALYSIS_PROMPT,
+      { inlineData: { data: imageBase64, mimeType } },
+    ])
+  } catch (err) {
+    throw humanizeGeminiError(err)
+  }
 
   const text = result.response.text().trim()
   const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
