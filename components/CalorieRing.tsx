@@ -19,7 +19,7 @@ const MEAL_LABELS: Record<string, string> = {
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack']
 const RING_START_DEG = -90
 const RING_SWEEP_DEG = 356
-const RING_GAP_DEG = 6
+const RING_VISIBLE_GAP_DEG = 4
 const FALLBACK_MEAL_COLOR = '#8c8278'
 
 function getMealColor(mealType: string) {
@@ -63,7 +63,10 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
     ? (goal > 0 ? Math.min(consumed / goal, 1) : 1) * RING_SWEEP_DEG
     : 0
   const gapCount = Math.max(sorted.length - 1, 0)
-  const gapDeg = progressDeg > gapCount * RING_GAP_DEG ? RING_GAP_DEG : 0
+  const roundCapDeg = (strokeW / radius) * (180 / Math.PI)
+  const idealGapDeg = roundCapDeg + RING_VISIBLE_GAP_DEG
+  const maxGapDeg = gapCount > 0 ? progressDeg / (gapCount + sorted.length) : 0
+  const gapDeg = gapCount > 0 ? Math.min(idealGapDeg, maxGapDeg) : 0
   const drawableDeg = Math.max(progressDeg - gapCount * gapDeg, 0)
   let arcCursorDeg = RING_START_DEG
   const mealArcs = sorted
