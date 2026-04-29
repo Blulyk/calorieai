@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 
 const MEAL_COLORS: Record<string, string> = {
-  breakfast: '#a3917d',
+  breakfast: '#f6b652',
   lunch: '#4a93e6',
-  dinner: '#766b60',
-  snack: '#b8a58f',
+  dinner: '#8b7cf6',
+  snack: '#ff6f8f',
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -24,7 +24,11 @@ const SIDE_SLOTS = [
   { startDeg: 210, deg: 18 },
   { startDeg: 240, deg: 34 },
 ]
-const SIDE_COLORS = ['#a3917d', '#6f655c', '#b8a58f']
+const FALLBACK_MEAL_COLOR = '#8c8278'
+
+function getMealColor(mealType: string) {
+  return MEAL_COLORS[mealType] ?? FALLBACK_MEAL_COLOR
+}
 
 export interface CalorieSegment {
   mealType: string
@@ -72,8 +76,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
       }
     })
 
-  const mainColor = '#4a93e6'
-  const dominantColor = mainColor
+  const dominantColor = dominant ? getMealColor(dominant.mealType) : FALLBACK_MEAL_COLOR
   const glowColor = over ? '#ef4444' : dominantColor
 
   return (
@@ -148,13 +151,13 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
                   cy={cy}
                   r={radius}
                   fill="none"
-                  stroke={mainColor}
+                  stroke={dominantColor}
                   strokeWidth={strokeW}
                   strokeDasharray={ready ? `${(MAIN_ARC_DEG / 360) * circumference} ${circumference}` : `0 ${circumference}`}
                   transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
                   strokeLinecap="round"
                   style={{
-                    filter: `drop-shadow(0 0 16px ${mainColor}78)`,
+                    filter: `drop-shadow(0 0 16px ${dominantColor}78)`,
                     transition: 'stroke-dasharray 0.95s cubic-bezier(0.16,1,0.3,1)',
                   }}
                 />
@@ -162,7 +165,8 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
 
               {sideArcs.map((arc, idx) => {
                 const segLen = (arc.deg / 360) * circumference
-                const color = arc.active ? SIDE_COLORS[idx] : '#4d4a45'
+                const mealColor = getMealColor(arc.mealType)
+                const color = arc.active ? mealColor : '#4d4a45'
                 return (
                   <circle
                     key={arc.mealType}
@@ -190,7 +194,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4 text-center">
           {consumed > 0 && dominant ? (
             <>
-              <span className="mb-1 text-xs font-bold uppercase" style={{ color: mainColor }}>
+              <span className="mb-1 text-xs font-bold uppercase" style={{ color: dominantColor }}>
                 {MEAL_LABELS[dominant.mealType]}
               </span>
               <span
@@ -223,7 +227,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             <div key={arc.mealType} className="flex items-center gap-1.5">
               <div
                 className="h-2 w-2 flex-shrink-0 rounded-full shadow-[0_0_10px_currentColor]"
-                style={{ background: MEAL_COLORS[arc.mealType], color: MEAL_COLORS[arc.mealType] }}
+                style={{ background: getMealColor(arc.mealType), color: getMealColor(arc.mealType) }}
               />
               <span className="text-xs font-medium text-zinc-300/58">
                 {MEAL_LABELS[arc.mealType]}
