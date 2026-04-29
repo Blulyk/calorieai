@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 
 const MEAL_COLORS: Record<string, string> = {
-  breakfast: '#9b8a78',
-  lunch: '#4f8fda',
-  dinner: '#756a5f',
-  snack: '#b6a28c',
+  breakfast: '#a3917d',
+  lunch: '#4a93e6',
+  dinner: '#766b60',
+  snack: '#b8a58f',
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -17,11 +17,14 @@ const MEAL_LABELS: Record<string, string> = {
 }
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack']
-const MAIN_START_DEG = -38
-const MAIN_ARC_DEG = 202
-const SIDE_START_DEG = 168
-const SIDE_ARC_DEG = 132
-const SIDE_GAP_DEG = 13
+const MAIN_START_DEG = -54
+const MAIN_ARC_DEG = 132
+const SIDE_SLOTS = [
+  { startDeg: 142, deg: 54 },
+  { startDeg: 210, deg: 18 },
+  { startDeg: 240, deg: 34 },
+]
+const SIDE_COLORS = ['#a3917d', '#6f655c', '#b8a58f']
 
 export interface CalorieSegment {
   mealType: string
@@ -56,21 +59,21 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
     .filter((s): s is CalorieSegment => !!s && s.calories > 0)
   const dominant = sorted.length > 0 ? sorted.reduce((a, b) => a.calories >= b.calories ? a : b) : null
 
-  const sideSegments = sorted.filter(seg => seg.mealType !== dominant?.mealType)
-  const sideTotal = Math.max(sideSegments.reduce((sum, seg) => sum + seg.calories, 0), 1)
-  const sideAvailable = Math.max(0, SIDE_ARC_DEG - Math.max(0, sideSegments.length - 1) * SIDE_GAP_DEG)
-  let sideCursor = SIDE_START_DEG
-  const sideArcs = sideSegments.map(seg => {
-    const deg = sideSegments.length === 1
-      ? Math.min(62, Math.max(32, sideAvailable))
-      : Math.min(54, Math.max(24, (seg.calories / sideTotal) * sideAvailable))
-    const startDeg = sideCursor
-    sideCursor += deg + SIDE_GAP_DEG
-    return { ...seg, startDeg, deg }
-  })
+  const sideArcs = MEAL_ORDER
+    .filter(type => type !== dominant?.mealType)
+    .slice(0, SIDE_SLOTS.length)
+    .map((mealType, index) => {
+      const match = segments.find(seg => seg.mealType === mealType)
+      return {
+        mealType,
+        calories: match?.calories ?? 0,
+        active: (match?.calories ?? 0) > 0,
+        ...SIDE_SLOTS[index],
+      }
+    })
 
-  const mainColor = '#4f8fda'
-  const dominantColor = dominant ? (dominant.mealType === 'lunch' ? mainColor : MEAL_COLORS[dominant.mealType] || mainColor) : mainColor
+  const mainColor = '#4a93e6'
+  const dominantColor = mainColor
   const glowColor = over ? '#ef4444' : dominantColor
 
   return (
@@ -106,11 +109,10 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             cy={cy}
             r={radius}
             fill="none"
-            stroke="rgba(94,88,80,0.34)"
-            strokeWidth={strokeW * 0.95}
+            stroke="rgba(70,75,76,0.48)"
+            strokeWidth={strokeW * 0.9}
             strokeLinecap="round"
-            strokeDasharray={`${((MAIN_ARC_DEG + SIDE_ARC_DEG) / 360) * circumference} ${circumference}`}
-            transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
+            opacity="0.72"
           />
           <circle
             cx={cx}
@@ -160,7 +162,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
 
               {sideArcs.map((arc, idx) => {
                 const segLen = (arc.deg / 360) * circumference
-                const color = MEAL_COLORS[arc.mealType] || '#9b8a78'
+                const color = arc.active ? SIDE_COLORS[idx] : '#4d4a45'
                 return (
                   <circle
                     key={arc.mealType}
@@ -169,13 +171,13 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
                     r={radius}
                     fill="none"
                     stroke={color}
-                    strokeWidth={strokeW * 0.9}
+                    strokeWidth={arc.active ? strokeW * 0.88 : strokeW * 0.72}
                     strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
                     transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
                     strokeLinecap="round"
                     style={{
                       filter: `drop-shadow(0 0 10px ${color}66)`,
-                      opacity: 0.92,
+                      opacity: arc.active ? 0.96 : 0.46,
                       transition: `stroke-dasharray 0.85s cubic-bezier(0.16,1,0.3,1) ${120 + idx * 80}ms`,
                     }}
                   />
@@ -188,7 +190,7 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4 text-center">
           {consumed > 0 && dominant ? (
             <>
-              <span className="mb-1 text-xs font-bold uppercase" style={{ color: MEAL_COLORS[dominant.mealType] }}>
+              <span className="mb-1 text-xs font-bold uppercase" style={{ color: mainColor }}>
                 {MEAL_LABELS[dominant.mealType]}
               </span>
               <span
