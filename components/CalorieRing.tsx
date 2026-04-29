@@ -17,13 +17,9 @@ const MEAL_LABELS: Record<string, string> = {
 }
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snack']
-const MAIN_START_DEG = -54
-const MAIN_ARC_DEG = 132
-const SIDE_SLOTS = [
-  { startDeg: 142, deg: 54 },
-  { startDeg: 210, deg: 18 },
-  { startDeg: 240, deg: 34 },
-]
+const RING_START_DEG = -90
+const RING_SWEEP_DEG = 356
+const RING_GAP_DEG = 6
 const FALLBACK_MEAL_COLOR = '#8c8278'
 
 function getMealColor(mealType: string) {
@@ -63,18 +59,25 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
     .filter((s): s is CalorieSegment => !!s && s.calories > 0)
   const dominant = sorted.length > 0 ? sorted.reduce((a, b) => a.calories >= b.calories ? a : b) : null
 
-  const sideArcs = MEAL_ORDER
-    .filter(type => type !== dominant?.mealType)
-    .slice(0, SIDE_SLOTS.length)
-    .map((mealType, index) => {
-      const match = segments.find(seg => seg.mealType === mealType)
-      return {
-        mealType,
-        calories: match?.calories ?? 0,
-        active: (match?.calories ?? 0) > 0,
-        ...SIDE_SLOTS[index],
+  const progressDeg = consumed > 0
+    ? (goal > 0 ? Math.min(consumed / goal, 1) : 1) * RING_SWEEP_DEG
+    : 0
+  const gapCount = Math.max(sorted.length - 1, 0)
+  const gapDeg = progressDeg > gapCount * RING_GAP_DEG ? RING_GAP_DEG : 0
+  const drawableDeg = Math.max(progressDeg - gapCount * gapDeg, 0)
+  let arcCursorDeg = RING_START_DEG
+  const mealArcs = sorted
+    .map(segment => {
+      const deg = consumed > 0 ? drawableDeg * (segment.calories / consumed) : 0
+      const arc = {
+        ...segment,
+        deg,
+        startDeg: arcCursorDeg,
       }
+      arcCursorDeg += deg + gapDeg
+      return arc
     })
+    .filter(arc => arc.deg > 0.5)
 
   const dominantColor = dominant ? getMealColor(dominant.mealType) : FALLBACK_MEAL_COLOR
   const glowColor = over ? '#ef4444' : dominantColor
@@ -126,69 +129,28 @@ export default function CalorieRing({ segments, goal, size = 248 }: Props) {
             strokeWidth="1"
           />
 
-          {over ? (
-            <circle
-              cx={cx}
-              cy={cy}
-              r={radius}
-              fill="none"
-              stroke="#ef4444"
-              strokeWidth={strokeW}
-              strokeDasharray={ready ? `${(MAIN_ARC_DEG / 360) * circumference} ${circumference}` : `0 ${circumference}`}
-              transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
-              strokeLinecap="round"
-              style={{
-                filter: 'url(#calorie-ring-glow)',
-                transition: 'stroke-dasharray 1s cubic-bezier(0.16,1,0.3,1)',
-              }}
-            />
-          ) : (
-            <>
-              {dominant && (
-                <circle
-                  key="dominant-main-arc"
-                  cx={cx}
-                  cy={cy}
-                  r={radius}
-                  fill="none"
-                  stroke={dominantColor}
-                  strokeWidth={strokeW}
-                  strokeDasharray={ready ? `${(MAIN_ARC_DEG / 360) * circumference} ${circumference}` : `0 ${circumference}`}
-                  transform={`rotate(${MAIN_START_DEG} ${cx} ${cy})`}
-                  strokeLinecap="round"
-                  style={{
-                    filter: `drop-shadow(0 0 16px ${dominantColor}78)`,
-                    transition: 'stroke-dasharray 0.95s cubic-bezier(0.16,1,0.3,1)',
-                  }}
-                />
-              )}
-
-              {sideArcs.map((arc, idx) => {
-                const segLen = (arc.deg / 360) * circumference
-                const mealColor = getMealColor(arc.mealType)
-                const color = arc.active ? mealColor : '#4d4a45'
-                return (
-                  <circle
-                    key={arc.mealType}
-                    cx={cx}
-                    cy={cy}
-                    r={radius}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={arc.active ? strokeW * 0.88 : strokeW * 0.72}
-                    strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
-                    transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
-                    strokeLinecap="round"
-                    style={{
-                      filter: `drop-shadow(0 0 10px ${color}66)`,
-                      opacity: arc.active ? 0.96 : 0.46,
-                      transition: `stroke-dasharray 0.85s cubic-bezier(0.16,1,0.3,1) ${120 + idx * 80}ms`,
-                    }}
-                  />
-                )
-              })}
-            </>
-          )}
+          {mealArcs.map((arc, idx) => {
+            const segLen = (arc.deg / 360) * circumference
+            const color = getMealColor(arc.mealType)
+            return (
+              <circle
+                key={arc.mealType}
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill="none"
+                stroke={color}
+                strokeWidth={strokeW}
+                strokeDasharray={ready ? `${segLen} ${circumference}` : `0 ${circumference}`}
+                transform={`rotate(${arc.startDeg} ${cx} ${cy})`}
+                strokeLinecap="round"
+                style={{
+                  filter: `drop-shadow(0 0 14px ${color}70)`,
+                  transition: `stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1) ${idx * 80}ms`,
+                }}
+              />
+            )
+          })}
         </svg>
 
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4 text-center">
