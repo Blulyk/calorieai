@@ -302,7 +302,7 @@ export interface UserSettings {
   weight_kg: number | null
   target_weight: number | null
   age: number | null
-  gender: 'male' | 'female' | 'other' | null
+  gender: 'male' | 'female' | null
   activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
   goal: 'lose' | 'maintain' | 'gain'
   calorie_goal: number | null

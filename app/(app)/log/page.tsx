@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
@@ -37,9 +37,10 @@ const MODEL_LABELS: Record<string, string> = {
 
 function guessCurrentMeal(): MealType {
   const h = new Date().getHours()
-  if (h < 10) return 'breakfast'
-  if (h < 14) return 'lunch'
-  if (h < 20) return 'dinner'
+  if (h >= 5 && h < 11) return 'breakfast'
+  if (h >= 11 && h < 16) return 'lunch'
+  if (h >= 16 && h < 20) return 'snack'
+  if (h >= 20 && h < 24) return 'dinner'
   return 'snack'
 }
 
@@ -65,13 +66,17 @@ export default function LogPage() {
 
   const [preview,  setPreview]  = useState<string | null>(null)
   const [file,     setFile]     = useState<File | null>(null)
-  const [mealType, setMealType] = useState<MealType>(guessCurrentMeal())
+  const [mealType, setMealType] = useState<MealType>('lunch')
   const [analyzing, setAnalyzing] = useState(false)
   const [result,   setResult]   = useState<AnalysisResult | null>(null)
   const [error,    setError]    = useState('')
   const [analysisStatus, setAnalysisStatus] = useState('')
   const [retryCount, setRetryCount] = useState(0)
   const [saving,   setSaving]   = useState(false)
+
+  useEffect(() => {
+    setMealType(guessCurrentMeal())
+  }, [])
 
   const handleFile = useCallback((f: File) => {
     if (!f.type.startsWith('image/')) { setError('Selecciona una imagen'); return }
@@ -234,7 +239,7 @@ export default function LogPage() {
 
             <button
               onClick={() => router.push('/recetario')}
-              className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-brand-400 font-semibold text-sm active:scale-95 transition-transform border border-brand-500/25"
+              className="mt-3 w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-brand-400 font-semibold text-sm active:scale-95 transition-transform border border-brand-500/25"
               style={{ background: 'rgba(249,115,22,0.06)' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">

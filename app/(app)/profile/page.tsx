@@ -60,7 +60,13 @@ export default function ProfilePage() {
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(data => {
       setUsername(data.username || '')
-      if (data.settings) setSettings({ ...data.settings, gemini_api_key: data.settings.gemini_api_key || '' })
+      if (data.settings) {
+        setSettings({
+          ...data.settings,
+          gemini_api_key: data.settings.gemini_api_key || '',
+          gender: data.settings.gender === 'other' ? null : data.settings.gender,
+        })
+      }
     })
   }, [])
 
@@ -174,7 +180,7 @@ export default function ProfilePage() {
           <div className="mt-4">
             <label className="block text-xs font-semibold text-zinc-600 mb-2">Sexo</label>
             <div className="flex gap-2">
-              {[{ v: 'male', l: '♂ Hombre' }, { v: 'female', l: '♀ Mujer' }, { v: 'other', l: '⚧ Otro' }].map(g => (
+              {[{ v: 'male', l: '♂ Hombre' }, { v: 'female', l: '♀ Mujer' }].map(g => (
                 <button
                   key={g.v}
                   onClick={() => set('gender', g.v)}
