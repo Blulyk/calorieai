@@ -20,6 +20,8 @@ export interface AnalysisResult {
   confidence: 'high' | 'medium' | 'low'
   meal_type_suggestion: 'breakfast' | 'lunch' | 'dinner' | 'snack'
   notes: string
+  model_used?: string
+  fallback_used?: boolean
 }
 
 export interface CalorieGoalResult {
@@ -94,6 +96,12 @@ function humanizeGeminiError(err: unknown): GeminiApiError {
   return new GeminiApiError(`${code}: No se pudo completar el analisis. Intentalo de nuevo.`, code, retryAfterSeconds, false)
 }
 
+const FOOD_ANALYSIS_MODELS = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+]
+
 export function formatRetryDelay(seconds: number): string {
   if (seconds < 60) return `${seconds} segundo${seconds === 1 ? '' : 's'}`
   const minutes = Math.ceil(seconds / 60)
@@ -135,30 +143,62 @@ Rules:
 
 export async function analyzeFood(apiKey: string, imageBase64: string, mimeType: string): Promise<AnalysisResult> {
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+  const errors: GeminiApiError[] = []
+  let lowConfidenceFallback: AnalysisResult | null = null
 
-  let result
-  try {
-    result = await model.generateContent([
-      FOOD_ANALYSIS_PROMPT,
-      { inlineData: { data: imageBase64, mimeType } },
-    ])
-  } catch (err) {
-    throw humanizeGeminiError(err)
+  for (const modelName of FOOD_ANALYSIS_MODELS) {
+    const model = genAI.getGenerativeModel({ model: modelName })
+
+    let result
+    try {
+      result = await model.generateContent([
+        FOOD_ANALYSIS_PROMPT,
+        { inlineData: { data: imageBase64, mimeType } },
+      ])
+    } catch (err) {
+      const geminiError = humanizeGeminiError(err)
+      errors.push(geminiError)
+      if (geminiError.code === 429 || geminiError.retryable) continue
+      throw geminiError
+    }
+
+    const text = result.response.text().trim()
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+    let parsed: AnalysisResult & { error?: string }
+    try {
+      parsed = JSON.parse(cleaned)
+    } catch {
+      errors.push(new GeminiApiError(`${modelName}: respuesta invalida del modelo. Probando otro modelo.`, 422, null, false))
+      continue
+    }
+
+    if (parsed.error) throw new GeminiApiError(`422: ${parsed.error}`, 422, null, false)
+
+    const analysis = {
+      ...parsed,
+      model_used: modelName,
+      fallback_used: modelName !== FOOD_ANALYSIS_MODELS[0],
+    }
+
+    if (parsed.confidence === 'low' && modelName === 'gemini-2.5-flash-lite') {
+      lowConfidenceFallback = analysis
+      errors.push(new GeminiApiError(`${modelName}: confianza baja. Probando un modelo mas preciso.`, 422, null, false))
+      continue
+    }
+
+    return analysis
   }
 
-  const text = result.response.text().trim()
-  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  if (lowConfidenceFallback) return lowConfidenceFallback
 
-  let parsed: AnalysisResult & { error?: string }
-  try {
-    parsed = JSON.parse(cleaned)
-  } catch {
-    throw new Error('Could not parse AI response. Please try again.')
-  }
+  const quotaError = errors.find(e => e.code === 429)
+  if (quotaError) throw quotaError
 
-  if (parsed.error) throw new Error(parsed.error)
-  return parsed
+  const overloadError = errors.find(e => e.code === 503)
+  if (overloadError) throw overloadError
+
+  throw errors[0] ?? new GeminiApiError('422: No se pudo completar el analisis. Intentalo de nuevo.', 422, null, false)
 }
 
 export async function calculateCalorieGoal(
