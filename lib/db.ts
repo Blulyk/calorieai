@@ -108,6 +108,15 @@ function initSchema(db: DatabaseSync) {
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_weight_user ON weight_logs(user_id, date);
+
+    CREATE TABLE IF NOT EXISTS shopping_items (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      checked    INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_shopping_items_user ON shopping_items(user_id, created_at);
   `)
 
   try {
@@ -127,6 +136,7 @@ function initSchema(db: DatabaseSync) {
     'training_days TEXT DEFAULT \'1,3,5\'',
     'training_calorie_goal INTEGER',
     'rest_calorie_goal INTEGER',
+    'goal_summary TEXT',
   ]
   for (const col of newUserSettingsCols) {
     try { db.exec(`ALTER TABLE user_settings ADD COLUMN ${col}`) } catch { /* already exists */ }
@@ -167,7 +177,7 @@ export function getSettings(userId: string) {
 
 export function updateSettings(userId: string, data: Partial<UserSettings>) {
   const db = getDb()
-  const allowed = ['gemini_api_key','height_cm','weight_kg','target_weight','age','gender','activity_level','goal','calorie_goal','fasting_enabled','fasting_protocol','fasting_start','fasting_end','carb_cycling_enabled','training_days','training_calorie_goal','rest_calorie_goal']
+  const allowed = ['gemini_api_key','height_cm','weight_kg','target_weight','age','gender','activity_level','goal','calorie_goal','fasting_enabled','fasting_protocol','fasting_start','fasting_end','carb_cycling_enabled','training_days','training_calorie_goal','rest_calorie_goal','goal_summary']
   const fields = Object.keys(data).filter(k => allowed.includes(k))
   if (!fields.length) return
   const set = fields.map(f => `${f} = ?`).join(', ')
@@ -325,6 +335,22 @@ export function deleteRecipe(id: string, userId: string) {
   getDb().prepare('DELETE FROM recipes WHERE id = ? AND user_id = ?').run(id, userId)
 }
 
+export function getShoppingItems(userId: string): ShoppingItem[] {
+  return getDb().prepare('SELECT * FROM shopping_items WHERE user_id = ? ORDER BY checked ASC, created_at DESC').all(userId) as unknown as ShoppingItem[]
+}
+
+export function createShoppingItem(item: Omit<ShoppingItem, 'created_at'>) {
+  getDb().prepare('INSERT INTO shopping_items (id, user_id, name, checked) VALUES (?, ?, ?, ?)').run(item.id, item.user_id, item.name, item.checked)
+}
+
+export function updateShoppingItem(id: string, userId: string, checked: boolean) {
+  getDb().prepare('UPDATE shopping_items SET checked = ? WHERE id = ? AND user_id = ?').run(checked ? 1 : 0, id, userId)
+}
+
+export function deleteShoppingItem(id: string, userId: string) {
+  getDb().prepare('DELETE FROM shopping_items WHERE id = ? AND user_id = ?').run(id, userId)
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface User {
@@ -355,6 +381,7 @@ export interface UserSettings {
   training_days: string | null
   training_calorie_goal: number | null
   rest_calorie_goal: number | null
+  goal_summary: string | null
 }
 
 export interface Meal {
@@ -407,6 +434,14 @@ export interface Recipe {
   photo_path: string | null
   created_at: number
   updated_at: number
+}
+
+export interface ShoppingItem {
+  id: string
+  user_id: string
+  name: string
+  checked: number
+  created_at: number
 }
 
 export function getStreak(userId: string): number {

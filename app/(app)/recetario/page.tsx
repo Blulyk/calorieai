@@ -24,7 +24,7 @@ export default function RecetarioPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
   const photoTarget = useRef<string | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', ingredients: '', instructions: '', servings: '1' })
+  const [form, setForm] = useState({ name: '', description: '', ingredients: '', instructions: '', servings: '1', calories: '', protein: '', carbs: '', fat: '', fiber: '' })
   const [formPhoto, setFormPhoto] = useState<File | null>(null)
   const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -57,12 +57,19 @@ export default function RecetarioPage() {
       fd.append('name', form.name.trim()); fd.append('description', form.description.trim())
       fd.append('ingredients', JSON.stringify(ings)); fd.append('instructions', form.instructions.trim())
       fd.append('servings', form.servings || '1')
+      fd.append('manual_nutrition', JSON.stringify({
+        calories: form.calories ? Number(form.calories) : undefined,
+        protein: form.protein ? Number(form.protein) : 0,
+        carbs: form.carbs ? Number(form.carbs) : 0,
+        fat: form.fat ? Number(form.fat) : 0,
+        fiber: form.fiber ? Number(form.fiber) : 0,
+      }))
       if (formPhoto) fd.append('photo', formPhoto)
       const res = await fetch('/api/recetario', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { setFormError(data.error || 'Error al crear receta'); setAnalyzing(false); return }
       setRecipes(prev => [data.recipe, ...prev])
-      setShowForm(false); setForm({ name: '', description: '', ingredients: '', instructions: '', servings: '1' })
+      setShowForm(false); setForm({ name: '', description: '', ingredients: '', instructions: '', servings: '1', calories: '', protein: '', carbs: '', fat: '', fiber: '' })
       setFormPhoto(null); setFormPhotoPreview(null)
     } catch { setFormError('Error del servidor') }
     setAnalyzing(false)
@@ -120,7 +127,7 @@ export default function RecetarioPage() {
       if (!res.ok) { setImportError(data.error || 'Error'); setImporting(false); return }
       // Pre-fill the form with imported data
       const { name, ingredients, servings } = data
-      setForm({ name, description: '', ingredients: ingredients.join('\n'), instructions: '', servings: String(servings) })
+      setForm({ name, description: '', ingredients: ingredients.join('\n'), instructions: '', servings: String(servings), calories: '', protein: '', carbs: '', fat: '', fiber: '' })
       setShowUrlImport(false)
       setShowForm(true)
       setImportUrl('')
@@ -326,6 +333,34 @@ export default function RecetarioPage() {
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
                     {formPhoto ? 'Lista ✓' : 'Añadir'}
                   </button>
+                </div>
+              </div>
+              <div className="rounded-2xl p-3 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div>
+                  <p className="text-xs font-semibold text-zinc-400">Valores manuales opcionales</p>
+                  <p className="text-[11px] text-zinc-600 mt-0.5">Si introduces kcal, se guarda sin esperar a la IA. Si lo dejas vacio, la IA estimara la receta con la descripcion e ingredientes.</p>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    ['calories', 'kcal'],
+                    ['protein', 'Prot'],
+                    ['carbs', 'Carb'],
+                    ['fat', 'Grasa'],
+                    ['fiber', 'Fibra'],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <label className="block text-[10px] font-semibold text-zinc-600 mb-1">{label}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={form[key as keyof typeof form]}
+                        onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                        className="w-full px-2 py-2 rounded-xl text-zinc-100 text-xs outline-none"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
               <input ref={formPhotoRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFormPhoto(e.target.files[0])} />

@@ -26,7 +26,7 @@ export async function POST() {
       target_weight: settings.target_weight ?? settings.weight_kg,
     })
 
-    updateSettings(session.userId, { calorie_goal: result.calorie_goal })
+    updateSettings(session.userId, { calorie_goal: result.calorie_goal, goal_summary: JSON.stringify(result) })
     return NextResponse.json(result)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected error'

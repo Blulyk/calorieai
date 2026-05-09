@@ -15,6 +15,7 @@ interface Settings {
   training_days: string | null
   training_calorie_goal: number | null
   rest_calorie_goal: number | null
+  goal_summary: string | null
 }
 interface GoalResult {
   tdee: number; calorie_goal: number; protein_goal: number; carbs_goal: number
@@ -58,6 +59,7 @@ export default function ProfilePage() {
     activity_level: 'moderate', goal: 'maintain', calorie_goal: null,
     fasting_enabled: false, fasting_protocol: '16:8', fasting_start: '12:00', fasting_end: '20:00',
     carb_cycling_enabled: false, training_days: '1,3,5', training_calorie_goal: null, rest_calorie_goal: null,
+    goal_summary: null,
   })
   const [saving,      setSaving]      = useState(false)
   const [saved,       setSaved]       = useState(false)
@@ -85,6 +87,9 @@ export default function ProfilePage() {
           training_calorie_goal: data.settings.training_calorie_goal || null,
           rest_calorie_goal: data.settings.rest_calorie_goal || null,
         }))
+        if (data.settings.goal_summary) {
+          try { setGoalResult(JSON.parse(data.settings.goal_summary)) } catch {}
+        }
       }
     })
   }, [])
@@ -125,7 +130,7 @@ export default function ProfilePage() {
       setCalcLoading(false)
       if (!res.ok) { setError(data.error || 'Error'); return }
       setGoalResult(data)
-      setSettings(s => ({ ...s, calorie_goal: data.calorie_goal }))
+      setSettings(s => ({ ...s, calorie_goal: data.calorie_goal, goal_summary: JSON.stringify(data) }))
     } catch (e: unknown) {
       setCalcLoading(false)
       setError(e instanceof Error && e.message !== 'Failed to fetch'

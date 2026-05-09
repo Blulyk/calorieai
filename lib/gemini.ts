@@ -260,12 +260,14 @@ export async function analyzeRecipe(
   name: string,
   ingredients: string[],
   servings: number,
-  apiKey: string
+  apiKey: string,
+  description = '',
+  instructions = ''
 ): Promise<{ foods: Array<{ name: string; portion: string; calories: number; protein: number; carbs: number; fat: number; fiber: number }>; total_calories: number; total_protein: number; total_carbs: number; total_fat: number; total_fiber: number; notes: string }> {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-  const prompt = `Analyze this recipe nutritionally. Recipe name: "${name}". Servings: ${servings}. Ingredients: ${ingredients.join(', ')}.
+  const prompt = `Analyze this recipe nutritionally. Recipe name: "${name}". Description: "${description || 'Not provided'}". Servings: ${servings}. Ingredients: ${ingredients.join(', ')}. Instructions or preparation notes: "${instructions || 'Not provided'}".
 Return ONLY valid JSON (no markdown):
 {"foods":[{"name":"ingredient name","portion":"amount","calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0}],"total_calories":0,"total_protein":0,"total_carbs":0,"total_fat":0,"total_fiber":0,"notes":"brief note"}
 All values are per serving (total divided by ${servings} servings). Be accurate with realistic nutritional values.`

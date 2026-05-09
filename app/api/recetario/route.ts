@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   try {
     const contentType = req.headers.get('content-type') || ''
     let name = '', description = '', ingredients: string[] = [], instructions = '', servings = 1, photoFile: File | null = null
+    let manualNutrition: { calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number } | null = null
 
     if (contentType.includes('multipart/form-data')) {
       const form = await req.formData()
@@ -27,17 +28,22 @@ export async function POST(req: Request) {
       instructions = form.get('instructions') as string || ''
       servings = parseInt(form.get('servings') as string || '1')
       photoFile = form.get('photo') as File | null
+      manualNutrition = JSON.parse(form.get('manual_nutrition') as string || 'null')
     } else {
       const body = await req.json()
       name = body.name; description = body.description || ''; ingredients = body.ingredients || []; instructions = body.instructions || ''; servings = body.servings || 1
+      manualNutrition = body.manual_nutrition || null
     }
 
     if (!name || !ingredients.length) return NextResponse.json({ error: 'Nombre e ingredientes requeridos' }, { status: 400 })
 
+    const hasManualNutrition = !!manualNutrition && Number(manualNutrition.calories) > 0
     const settings = getSettings(session.userId)
-    if (!settings?.gemini_api_key) return NextResponse.json({ error: 'Configura tu API key de Gemini primero' }, { status: 400 })
+    if (!hasManualNutrition && !settings?.gemini_api_key) return NextResponse.json({ error: 'Configura tu API key de Gemini o introduce calorias manualmente' }, { status: 400 })
 
-    const analysis = await analyzeRecipe(name, ingredients, servings, settings.gemini_api_key)
+    const analysis = hasManualNutrition
+      ? buildManualRecipeAnalysis(name, ingredients, manualNutrition!)
+      : await analyzeRecipe(name, ingredients, servings, settings!.gemini_api_key!, description, instructions)
 
     let photoPath: string | null = null
     if (photoFile && photoFile.size > 0) {
@@ -61,5 +67,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ recipe, analysis })
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error del servidor' }, { status: 500 })
+  }
+}
+
+function buildManualRecipeAnalysis(name: string, ingredients: string[], nutrition: { calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number }) {
+  const calories = Number(nutrition.calories) || 0
+  const protein = Number(nutrition.protein) || 0
+  const carbs = Number(nutrition.carbs) || 0
+  const fat = Number(nutrition.fat) || 0
+  const fiber = Number(nutrition.fiber) || 0
+  return {
+    foods: ingredients.map(ingredient => ({
+      name: ingredient,
+      portion: 'Incluido en la receta',
+      calories: Math.round(calories / Math.max(1, ingredients.length)),
+      protein: Math.round((protein / Math.max(1, ingredients.length)) * 10) / 10,
+      carbs: Math.round((carbs / Math.max(1, ingredients.length)) * 10) / 10,
+      fat: Math.round((fat / Math.max(1, ingredients.length)) * 10) / 10,
+      fiber: Math.round((fiber / Math.max(1, ingredients.length)) * 10) / 10,
+    })),
+    total_calories: calories,
+    total_protein: protein,
+    total_carbs: carbs,
+    total_fat: fat,
+    total_fiber: fiber,
+    notes: `Valores introducidos manualmente para ${name}.`,
   }
 }

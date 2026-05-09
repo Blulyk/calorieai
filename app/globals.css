@@ -45,7 +45,7 @@
   }
 
   .app-shell {
-    --bottom-nav-space: calc(108px + env(safe-area-inset-bottom, 0px));
+    --bottom-nav-space: calc(132px + env(safe-area-inset-bottom, 0px));
   }
 
   .app-shell > .liquid-page {
@@ -53,7 +53,7 @@
   }
 
   .bottom-sheet-scroll {
-    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .glass,
