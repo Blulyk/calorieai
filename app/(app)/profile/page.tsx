@@ -128,7 +128,9 @@ export default function ProfilePage() {
       setSettings(s => ({ ...s, calorie_goal: data.calorie_goal }))
     } catch (e: unknown) {
       setCalcLoading(false)
-      setError(e instanceof Error ? e.message : 'Request failed')
+      setError(e instanceof Error && e.message !== 'Failed to fetch'
+        ? e.message
+        : 'No se pudo calcular el objetivo. Revisa la conexion y vuelve a intentarlo.')
     }
   }
 
