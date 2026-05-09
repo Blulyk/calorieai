@@ -138,19 +138,36 @@ export default function RecetarioPage() {
           <p className="text-xs text-zinc-500 mt-0.5 uppercase tracking-widest">{recipes.length} receta{recipes.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push('/planner')}
-            className="flex items-center gap-1.5 glass-btn text-white/70 text-sm font-semibold px-3 py-2.5 rounded-2xl active:scale-95 transition-transform">
-            📅 Planificador →
+          {/* Planificador — icono calendario */}
+          <button
+            onClick={() => router.push('/planner')}
+            title="Planificador semanal"
+            className="glass-btn w-10 h-10 rounded-2xl flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <rect x="3" y="4" width="18" height="18" rx="3" ry="3" strokeLinecap="round" strokeLinejoin="round" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
           </button>
-          <button onClick={() => setShowUrlImport(true)}
-            className="flex items-center gap-1.5 glass-btn text-white/70 text-sm font-semibold px-3 py-2.5 rounded-2xl active:scale-95 transition-transform">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          {/* URL import — icono enlace */}
+          <button
+            onClick={() => setShowUrlImport(true)}
+            title="Importar receta desde URL"
+            className="glass-btn w-10 h-10 rounded-2xl flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
             </svg>
-            URL
           </button>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-brand-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+          {/* Nueva receta */}
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 bg-brand-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl active:scale-95 transition-transform"
+            style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
             Nueva
           </button>
         </div>
