@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
-import { BarcodeFormat, DecodeHintType } from '@zxing/library'
+import { BarcodeFormat, DecodeHintType, MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } from '@zxing/library'
 
 interface BarcodeProduct {
   name: string; brand: string; portion: string
@@ -162,15 +162,53 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
     setError('')
     setStatusMsg('Leyendo código desde la imagen...')
 
-    const url = URL.createObjectURL(file)
     try {
-      const reader = readerRef.current ?? new BrowserMultiFormatReader(hints)
-      const result = await reader.decodeFromImageUrl(url)
+      // 1. Read file as data URL (avoids blob URL revocation race condition)
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(fr.result as string)
+        fr.onerror = reject
+        fr.readAsDataURL(file)
+      })
+
+      // 2. Load into an <img> element so we can draw it
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image()
+        el.onload = () => resolve(el)
+        el.onerror = reject
+        el.src = dataUrl
+      })
+
+      // 3. Draw to canvas (resize to max 1200px to improve ZXing detection rate)
+      const canvas = document.createElement('canvas')
+      const MAX = 1200
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+      canvas.width  = Math.round(img.width  * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      // 4. Decode using ZXing low-level API (RGBLuminanceSource from canvas ImageData)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const lum = new RGBLuminanceSource(imageData.data as unknown as Uint8ClampedArray, canvas.width, canvas.height)
+      const bitmap = new BinaryBitmap(new HybridBinarizer(lum))
+      const mfr = new MultiFormatReader()
+      mfr.setHints(hints)
+      const result = mfr.decode(bitmap)
       await lookupCode(result.getText())
-    } catch {
-      setError('No pude leer ningún código en esa imagen. Prueba con una foto más enfocada o introdúcelo manualmente.')
+    } catch (err) {
+      if (!mountedRef.current) return
+      // ZXing throws NotFoundException when no barcode is found
+      const isNotFound = err instanceof Error && (
+        err.name === 'NotFoundException' ||
+        err.message?.includes('NotFoundException') ||
+        err.message?.includes('No MultiFormat')
+      )
+      setError(isNotFound
+        ? 'No detecté ningún código en la foto. Asegúrate de que el código esté bien visible y enfocado, o introdúcelo manualmente.'
+        : 'Error al procesar la imagen. Introdúcelo manualmente.'
+      )
     } finally {
-      URL.revokeObjectURL(url)
       if (mountedRef.current) setLoading(false)
       if (fileRef.current) fileRef.current.value = ''
     }
@@ -193,7 +231,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
         ref={fileRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={e => e.target.files?.[0] && void scanImage(e.target.files[0])}
       />
