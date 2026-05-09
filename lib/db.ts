@@ -89,6 +89,17 @@ function initSchema(db: DatabaseSync) {
     );
     CREATE INDEX IF NOT EXISTS idx_recipes_user ON recipes(user_id);
 
+    CREATE TABLE IF NOT EXISTS meal_plans (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+      servings REAL NOT NULL DEFAULT 1,
+      meal_type TEXT DEFAULT 'lunch',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_meal_plans_user ON meal_plans(user_id, date);
+
     CREATE TABLE IF NOT EXISTS weight_logs (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,6 +117,20 @@ function initSchema(db: DatabaseSync) {
   }
 
   db.exec('UPDATE daily_water SET water_ml = glasses * 250 WHERE water_ml = 0 AND glasses > 0')
+
+  const newUserSettingsCols = [
+    'fasting_enabled INTEGER DEFAULT 0',
+    'fasting_protocol TEXT DEFAULT \'16:8\'',
+    'fasting_start TEXT DEFAULT \'12:00\'',
+    'fasting_end TEXT DEFAULT \'20:00\'',
+    'carb_cycling_enabled INTEGER DEFAULT 0',
+    'training_days TEXT DEFAULT \'1,3,5\'',
+    'training_calorie_goal INTEGER',
+    'rest_calorie_goal INTEGER',
+  ]
+  for (const col of newUserSettingsCols) {
+    try { db.exec(`ALTER TABLE user_settings ADD COLUMN ${col}`) } catch { /* already exists */ }
+  }
 }
 
 // ─── User queries ─────────────────────────────────────────────────────────────
@@ -142,7 +167,7 @@ export function getSettings(userId: string) {
 
 export function updateSettings(userId: string, data: Partial<UserSettings>) {
   const db = getDb()
-  const allowed = ['gemini_api_key','height_cm','weight_kg','target_weight','age','gender','activity_level','goal','calorie_goal']
+  const allowed = ['gemini_api_key','height_cm','weight_kg','target_weight','age','gender','activity_level','goal','calorie_goal','fasting_enabled','fasting_protocol','fasting_start','fasting_end','carb_cycling_enabled','training_days','training_calorie_goal','rest_calorie_goal']
   const fields = Object.keys(data).filter(k => allowed.includes(k))
   if (!fields.length) return
   const set = fields.map(f => `${f} = ?`).join(', ')
@@ -316,6 +341,14 @@ export interface UserSettings {
   goal: 'lose' | 'maintain' | 'gain'
   calorie_goal: number | null
   updated_at: number
+  fasting_enabled: number | null
+  fasting_protocol: string | null
+  fasting_start: string | null
+  fasting_end: string | null
+  carb_cycling_enabled: number | null
+  training_days: string | null
+  training_calorie_goal: number | null
+  rest_calorie_goal: number | null
 }
 
 export interface Meal {
@@ -417,6 +450,43 @@ export function getWeightLogs(userId: string, limit = 14): WeightLog[] {
   return getDb().prepare(
     'SELECT * FROM weight_logs WHERE user_id = ? ORDER BY date DESC LIMIT ?'
   ).all(userId, limit) as unknown as WeightLog[]
+}
+
+export interface MealPlan {
+  id: string; user_id: string; date: string; recipe_id: string
+  servings: number; meal_type: string; created_at: number
+}
+
+export function getMealPlans(userId: string, startDate: string, endDate: string): MealPlan[] {
+  return getDb().prepare('SELECT * FROM meal_plans WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date, created_at').all(userId, startDate, endDate) as unknown as MealPlan[]
+}
+
+export function upsertMealPlan(plan: Omit<MealPlan, 'created_at'>) {
+  getDb().prepare(`INSERT INTO meal_plans (id, user_id, date, recipe_id, servings, meal_type) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET servings = excluded.servings, meal_type = excluded.meal_type`
+  ).run(plan.id, plan.user_id, plan.date, plan.recipe_id, plan.servings, plan.meal_type)
+}
+
+export function deleteMealPlan(id: string, userId: string) {
+  getDb().prepare('DELETE FROM meal_plans WHERE id = ? AND user_id = ?').run(id, userId)
+}
+
+export function getAdaptiveTDEE(userId: string): { tdee: number; confidence: 'high'|'medium'|'low'; days: number } | null {
+  const db = getDb()
+  const weightRows = db.prepare('SELECT date, weight_kg FROM weight_logs WHERE user_id = ? ORDER BY date DESC LIMIT 30').all(userId) as { date: string; weight_kg: number }[]
+  if (weightRows.length < 4) return null
+  const oldestWeight = weightRows[weightRows.length - 1]
+  const newestWeight = weightRows[0]
+  const days = Math.round((new Date(newestWeight.date).getTime() - new Date(oldestWeight.date).getTime()) / 86400000)
+  if (days < 7) return null
+  const mealRows = db.prepare(`SELECT date, SUM(calories) as cal FROM meals WHERE user_id = ? AND date BETWEEN ? AND ? GROUP BY date`).all(userId, oldestWeight.date, newestWeight.date) as { date: string; cal: number }[]
+  if (mealRows.length < 5) return null
+  const avgCal = mealRows.reduce((s, r) => s + r.cal, 0) / mealRows.length
+  const weightChangePer_day = (newestWeight.weight_kg - oldestWeight.weight_kg) / days
+  const tdee = Math.round(avgCal - weightChangePer_day * 7700)
+  if (tdee < 1000 || tdee > 5000) return null
+  const confidence = days >= 14 && mealRows.length >= 10 ? 'high' : days >= 10 ? 'medium' : 'low'
+  return { tdee, confidence, days }
 }
 
 export function getRecentFoods(userId: string, limit = 6): Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; portion: string }> {

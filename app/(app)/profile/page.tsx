@@ -7,6 +7,14 @@ interface Settings {
   gemini_api_key: string | null; height_cm: number | null; weight_kg: number | null
   target_weight: number | null; age: number | null; gender: string | null
   activity_level: string; goal: string; calorie_goal: number | null
+  fasting_enabled: boolean | null
+  fasting_protocol: string | null
+  fasting_start: string | null
+  fasting_end: string | null
+  carb_cycling_enabled: boolean | null
+  training_days: string | null
+  training_calorie_goal: number | null
+  rest_calorie_goal: number | null
 }
 interface GoalResult {
   tdee: number; calorie_goal: number; protein_goal: number; carbs_goal: number
@@ -48,6 +56,8 @@ export default function ProfilePage() {
     gemini_api_key: '', height_cm: null, weight_kg: null,
     target_weight: null, age: null, gender: null,
     activity_level: 'moderate', goal: 'maintain', calorie_goal: null,
+    fasting_enabled: false, fasting_protocol: '16:8', fasting_start: '12:00', fasting_end: '20:00',
+    carb_cycling_enabled: false, training_days: '1,3,5', training_calorie_goal: null, rest_calorie_goal: null,
   })
   const [saving,      setSaving]      = useState(false)
   const [saved,       setSaved]       = useState(false)
@@ -61,11 +71,20 @@ export default function ProfilePage() {
     fetch('/api/auth/me').then(r => r.json()).then(data => {
       setUsername(data.username || '')
       if (data.settings) {
-        setSettings({
+        setSettings(prev => ({
+          ...prev,
           ...data.settings,
           gemini_api_key: data.settings.gemini_api_key || '',
           gender: data.settings.gender === 'other' ? null : data.settings.gender,
-        })
+          fasting_enabled: !!data.settings.fasting_enabled,
+          fasting_protocol: data.settings.fasting_protocol || '16:8',
+          fasting_start: data.settings.fasting_start || '12:00',
+          fasting_end: data.settings.fasting_end || '20:00',
+          carb_cycling_enabled: !!data.settings.carb_cycling_enabled,
+          training_days: data.settings.training_days || '1,3,5',
+          training_calorie_goal: data.settings.training_calorie_goal || null,
+          rest_calorie_goal: data.settings.rest_calorie_goal || null,
+        }))
       }
     })
   }, [])
@@ -304,6 +323,111 @@ export default function ProfilePage() {
           {settings.calorie_goal && !goalResult && (
             <div className="mt-3 text-center text-sm text-zinc-600">
               Objetivo actual: <span className="font-bold text-zinc-300">{settings.calorie_goal} kcal/día</span>
+            </div>
+          )}
+        </Section>
+
+        {/* Ayuno Intermitente */}
+        <Section icon="⏱️" title="Ayuno Intermitente">
+          <p className="text-xs text-zinc-600 mb-4">Controla tu ventana de alimentación para el ayuno intermitente. La app mostrará un temporizador en el inicio indicando si estás en periodo de ayuno o de alimentación.</p>
+
+          {/* Enable toggle */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-semibold text-zinc-300">Activar ayuno intermitente</p>
+              <p className="text-xs text-zinc-600">Desactivado por defecto</p>
+            </div>
+            <button onClick={() => set('fasting_enabled', !settings.fasting_enabled)}
+              className="relative w-11 h-6 rounded-full transition-colors"
+              style={{ background: settings.fasting_enabled ? '#0A84FF' : 'rgba(255,255,255,0.12)' }}>
+              <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
+                style={{ left: settings.fasting_enabled ? '24px' : '2px' }} />
+            </button>
+          </div>
+
+          {settings.fasting_enabled && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-zinc-600 block mb-2">Protocolo</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {['16:8','18:6','20:4','12:12'].map(p => (
+                    <button key={p} onClick={() => set('fasting_protocol', p)}
+                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${settings.fasting_protocol === p ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'glass-btn text-zinc-500'}`}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-600 block mb-1.5">Inicio ventana (comer desde)</label>
+                  <input type="time" value={settings.fasting_start || '12:00'} onChange={e => set('fasting_start', e.target.value)}
+                    className="glass-input w-full px-3 py-2.5 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-600 block mb-1.5">Fin ventana (comer hasta)</label>
+                  <input type="time" value={settings.fasting_end || '20:00'} onChange={e => set('fasting_end', e.target.value)}
+                    className="glass-input w-full px-3 py-2.5 rounded-xl text-sm" />
+                </div>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* Ciclo de Carbohidratos */}
+        <Section icon="🔄" title="Ciclo de Carbohidratos">
+          <p className="text-xs text-zinc-600 mb-4">Establece objetivos calóricos distintos para tus días de entrenamiento y de descanso. Los días de entreno puedes comer más carbohidratos para rendir mejor.</p>
+
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-semibold text-zinc-300">Activar ciclo de carbohidratos</p>
+              <p className="text-xs text-zinc-600">Desactivado por defecto</p>
+            </div>
+            <button onClick={() => set('carb_cycling_enabled', !settings.carb_cycling_enabled)}
+              className="relative w-11 h-6 rounded-full transition-colors"
+              style={{ background: settings.carb_cycling_enabled ? '#32D74B' : 'rgba(255,255,255,0.12)' }}>
+              <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
+                style={{ left: settings.carb_cycling_enabled ? '24px' : '2px' }} />
+            </button>
+          </div>
+
+          {settings.carb_cycling_enabled && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-zinc-600 block mb-2">Días de entrenamiento</label>
+                <div className="flex gap-1.5">
+                  {['L','M','X','J','V','S','D'].map((d, i) => {
+                    const val = i + 1 === 7 ? 0 : i + 1 // Mon=1...Sun=0
+                    const days = (settings.training_days || '').split(',').map(Number)
+                    const active = days.includes(val)
+                    return (
+                      <button key={d} onClick={() => {
+                        const current = (settings.training_days || '').split(',').map(Number).filter(n => !isNaN(n) && n >= 0)
+                        const next = active ? current.filter(x => x !== val) : [...current, val]
+                        set('training_days', next.sort().join(','))
+                      }}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold border transition-all"
+                        style={{ background: active ? 'rgba(50,215,75,0.15)' : 'transparent', border: active ? '0.5px solid rgba(50,215,75,0.35)' : '0.5px solid rgba(255,255,255,0.1)', color: active ? '#32D74B' : 'rgba(235,235,245,0.35)' }}>
+                        {d}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-600 block mb-1.5">Kcal días entreno</label>
+                  <input type="number" value={settings.training_calorie_goal ?? ''} onChange={e => set('training_calorie_goal', e.target.value ? Number(e.target.value) : null)}
+                    placeholder={String((settings.calorie_goal || 2000) + 300)}
+                    className="glass-input w-full px-3 py-2.5 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-600 block mb-1.5">Kcal días descanso</label>
+                  <input type="number" value={settings.rest_calorie_goal ?? ''} onChange={e => set('rest_calorie_goal', e.target.value ? Number(e.target.value) : null)}
+                    placeholder={String((settings.calorie_goal || 2000) - 200)}
+                    className="glass-input w-full px-3 py-2.5 rounded-xl text-sm" />
+                </div>
+              </div>
             </div>
           )}
         </Section>

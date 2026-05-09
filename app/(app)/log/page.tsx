@@ -3,6 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import BarcodeScanner from '@/components/BarcodeScanner'
+import { searchRestaurants, type RestaurantItem } from '@/lib/restaurants'
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
@@ -77,10 +79,19 @@ export default function LogPage() {
   const [saving,   setSaving]   = useState(false)
   const [recentFoods, setRecentFoods] = useState<RecentFood[]>([])
 
+  const [showBarcode, setShowBarcode] = useState(false)
+  const [restaurantQuery, setRestaurantQuery] = useState('')
+  const [restaurantResults, setRestaurantResults] = useState<ReturnType<typeof searchRestaurants>>([])
+  const [activeTab, setActiveTab] = useState<'photo' | 'barcode' | 'restaurant'>('photo')
+
   useEffect(() => {
     setMealType(guessCurrentMeal())
     fetch('/api/meals/recent').then(r => r.json()).then(d => setRecentFoods(d.foods || []))
   }, [])
+
+  useEffect(() => {
+    setRestaurantResults(searchRestaurants(restaurantQuery))
+  }, [restaurantQuery])
 
   const handleFile = useCallback((f: File) => {
     if (!f.type.startsWith('image/')) { setError('Selecciona una imagen'); return }
@@ -132,23 +143,6 @@ export default function LogPage() {
     }
   }
 
-  async function analyzeOnce() {
-    if (!file) return
-    setAnalyzing(true); setError('')
-    try {
-      const form = new FormData()
-      form.append('image', file)
-      const res  = await fetch('/api/analyze', { method: 'POST', body: form })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Análisis fallido'); setAnalyzing(false); return }
-      setResult(data.analysis)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Análisis fallido')
-    } finally {
-      setAnalyzing(false)
-    }
-  }
-
   async function addRecent(food: RecentFood) {
     setSaving(true); setError('')
     try {
@@ -175,6 +169,47 @@ export default function LogPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function addRestaurantItem(item: RestaurantItem) {
+    setSaving(true); setError('')
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const res = await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: today, meal_type: mealType,
+          name: `${item.chain} — ${item.name}`,
+          foods: [{ name: item.name, portion: item.portion, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat, fiber: 0 }],
+          calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat, fiber: 0,
+        }),
+      })
+      if (res.ok) router.replace('/')
+      else { const d = await res.json(); setError(d.error || 'Error') }
+    } catch { setError('Error al guardar') }
+    setSaving(false)
+  }
+
+  async function handleBarcodeProduct(product: { name: string; brand: string; portion: string; calories: number; protein: number; carbs: number; fat: number; fiber: number; barcode: string }) {
+    setShowBarcode(false)
+    setSaving(true); setError('')
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const res = await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: today, meal_type: mealType,
+          name: product.brand ? `${product.brand} — ${product.name}` : product.name,
+          foods: [{ name: product.name, portion: product.portion, calories: product.calories, protein: product.protein, carbs: product.carbs, fat: product.fat, fiber: product.fiber }],
+          calories: product.calories, protein: product.protein, carbs: product.carbs, fat: product.fat, fiber: product.fiber,
+        }),
+      })
+      if (res.ok) router.replace('/')
+      else { const d = await res.json(); setError(d.error || 'Error') }
+    } catch { setError('Error al guardar') }
+    setSaving(false)
   }
 
   async function save() {
@@ -235,73 +270,163 @@ export default function LogPage() {
         {/* Upload area */}
         {!preview ? (
           <>
-          <div className="glass rounded-3xl p-6">
-            <div
-              onClick={() => fileRef.current?.click()}
-              className="rounded-2xl p-8 text-center cursor-pointer active:scale-[0.99] transition-all"
-              style={{ border: '1.5px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)' }}
-            >
-              <div className="w-16 h-16 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-brand-500/60" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                </svg>
-              </div>
-              <p className="font-semibold text-zinc-300">Subir foto de comida</p>
-              <p className="text-sm text-zinc-600 mt-1">Toca para elegir de la galería</p>
-            </div>
-
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-white/8" />
-              <span className="text-xs text-zinc-700 font-medium">O</span>
-              <div className="flex-1 h-px bg-white/8" />
-            </div>
-
-            <button
-              onClick={() => cameraRef.current?.click()}
-              className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-glow"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-              </svg>
-              Hacer foto
-            </button>
-
-            <input ref={fileRef}   type="file" accept="image/*"             className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-
-            <button
-              onClick={() => router.push('/recetario')}
-              className="mt-3 w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-brand-400 font-semibold text-sm active:scale-95 transition-transform border border-brand-500/25"
-              style={{ background: 'rgba(249,115,22,0.06)' }}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Añadir del recetario
-            </button>
+          {/* Tab bar */}
+          <div className="glass rounded-2xl p-1 flex relative mb-4">
+            {(['photo','barcode','restaurant'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className="flex-1 py-2.5 text-xs font-semibold relative z-10 transition-colors rounded-xl"
+                style={{ color: activeTab === tab ? '#fff' : 'rgba(235,235,245,0.4)', background: activeTab === tab ? 'rgba(255,255,255,0.1)' : 'transparent' }}>
+                {tab === 'photo' ? '📸 Foto IA' : tab === 'barcode' ? '📦 Código barras' : '🍔 Restaurantes'}
+              </button>
+            ))}
           </div>
 
-          {recentFoods.length > 0 && (
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/38 mb-3 px-1">Recientes</p>
-              <div className="glass rounded-[1.4rem] overflow-hidden">
-                {recentFoods.map((f, i) => (
-                  <div key={f.name} className="flex items-center gap-3 px-4 py-3"
-                    style={{ borderBottom: i < recentFoods.length - 1 ? '0.5px solid rgba(255,255,255,0.07)' : 'none' }}>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white leading-tight line-clamp-1">{f.name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">{f.portion} · {Math.round(f.calories)} kcal</p>
-                    </div>
-                    <button onClick={() => addRecent(f)}
-                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0A84FF] active:scale-90 transition-transform">
-                      <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+          {activeTab === 'photo' && (
+            <>
+            <div className="glass rounded-3xl p-6">
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="rounded-2xl p-8 text-center cursor-pointer active:scale-[0.99] transition-all"
+                style={{ border: '1.5px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)' }}
+              >
+                <div className="w-16 h-16 bg-brand-500/10 border border-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-brand-500/60" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  </svg>
+                </div>
+                <p className="font-semibold text-zinc-300">Subir foto de comida</p>
+                <p className="text-sm text-zinc-600 mt-1">Toca para elegir de la galería</p>
               </div>
+
+              <div className="flex items-center gap-3 my-5">
+                <div className="flex-1 h-px bg-white/8" />
+                <span className="text-xs text-zinc-700 font-medium">O</span>
+                <div className="flex-1 h-px bg-white/8" />
+              </div>
+
+              <button
+                onClick={() => cameraRef.current?.click()}
+                className="w-full bg-brand-500 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-glow"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                </svg>
+                Hacer foto
+              </button>
+
+              <input ref={fileRef}   type="file" accept="image/*"             className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+
+              <button
+                onClick={() => router.push('/recetario')}
+                className="mt-3 w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-brand-400 font-semibold text-sm active:scale-95 transition-transform border border-brand-500/25"
+                style={{ background: 'rgba(249,115,22,0.06)' }}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Añadir del recetario
+              </button>
+            </div>
+
+            {recentFoods.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/38 mb-3 px-1">Recientes</p>
+                <div className="glass rounded-[1.4rem] overflow-hidden">
+                  {recentFoods.map((f, i) => (
+                    <div key={f.name} className="flex items-center gap-3 px-4 py-3"
+                      style={{ borderBottom: i < recentFoods.length - 1 ? '0.5px solid rgba(255,255,255,0.07)' : 'none' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white leading-tight line-clamp-1">{f.name}</p>
+                        <p className="text-xs text-white/40 mt-0.5">{f.portion} · {Math.round(f.calories)} kcal</p>
+                      </div>
+                      <button onClick={() => addRecent(f)}
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0A84FF] active:scale-90 transition-transform">
+                        <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            </>
+          )}
+
+          {activeTab === 'barcode' && (
+            <div className="glass rounded-3xl p-6 text-center space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-3xl flex items-center justify-center" style={{ background: 'rgba(10,132,255,0.12)', border: '1px solid rgba(10,132,255,0.25)' }}>
+                <svg className="w-8 h-8 text-[#0A84FF]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-bold text-white text-base">Escanear código de barras</p>
+                <p className="text-xs text-white/40 mt-1 max-w-[220px] mx-auto">Apunta la cámara al código de barras de cualquier producto empaquetado. Los datos nutricionales se importan automáticamente desde Open Food Facts (3 millones de productos).</p>
+              </div>
+              <button onClick={() => setShowBarcode(true)} className="w-full py-3.5 rounded-2xl font-bold text-white active:scale-95 transition-transform" style={{ background: 'linear-gradient(145deg, #1F8FFF, #0A6BE0)', boxShadow: '0 4px 16px rgba(10,132,255,0.35)' }}>
+                Abrir escáner
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'restaurant' && (
+            <div className="space-y-3">
+              <div className="glass rounded-2xl flex items-center gap-3 px-4" style={{ height: 46 }}>
+                <svg className="h-4 w-4 text-white/35 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="m20 20-3.5-3.5" />
+                </svg>
+                <input value={restaurantQuery} onChange={e => setRestaurantQuery(e.target.value)}
+                  placeholder="McDonald's, Whopper, Starbucks…"
+                  className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30" />
+                {restaurantQuery && <button onClick={() => setRestaurantQuery('')} className="text-white/40 text-lg">×</button>}
+              </div>
+
+              {restaurantQuery && restaurantResults.length === 0 && (
+                <div className="glass rounded-2xl p-5 text-center">
+                  <p className="text-sm text-white/40">Sin resultados para &quot;{restaurantQuery}&quot;</p>
+                </div>
+              )}
+
+              {restaurantResults.length > 0 && (
+                <div className="glass rounded-[1.4rem] overflow-hidden">
+                  {restaurantResults.map((item, i) => (
+                    <div key={`${item.chain}-${item.name}`} className="flex items-center gap-3 px-4 py-3"
+                      style={{ borderBottom: i < restaurantResults.length - 1 ? '0.5px solid rgba(255,255,255,0.07)' : 'none' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white leading-tight">{item.name}</p>
+                        <p className="text-xs text-white/40 mt-0.5">{item.chain} · {item.portion}</p>
+                        <div className="flex gap-2 mt-1">
+                          <span className="text-[10px] text-[#32D74B]">P {item.protein}g</span>
+                          <span className="text-[10px] text-[#FF9F0A]">C {item.carbs}g</span>
+                          <span className="text-[10px] text-[#FFD60A]">G {item.fat}g</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 mr-3">
+                        <p className="text-sm font-bold text-white tabular-nums">{item.calories}</p>
+                        <p className="text-[9px] text-white/35">kcal</p>
+                      </div>
+                      <button onClick={() => addRestaurantItem(item)}
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0A84FF] active:scale-90 transition-transform">
+                        <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!restaurantQuery && (
+                <div className="glass rounded-2xl p-5 text-center space-y-2">
+                  <p className="text-2xl">🍔</p>
+                  <p className="font-semibold text-white/70 text-sm">Base de datos de restaurantes</p>
+                  <p className="text-xs text-white/35">Incluye McDonald&#39;s, Burger King, KFC, Starbucks, Five Guys, Subway y más. Busca por nombre o cadena.</p>
+                </div>
+              )}
             </div>
           )}
           </>
@@ -420,6 +545,13 @@ export default function LogPage() {
           </div>
         )}
       </div>
+
+      {showBarcode && (
+        <BarcodeScanner
+          onProduct={handleBarcodeProduct}
+          onClose={() => setShowBarcode(false)}
+        />
+      )}
     </div>
   )
 }

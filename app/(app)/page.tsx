@@ -9,6 +9,8 @@ import WaterTracker from '@/components/WaterTracker'
 import WeekStrip from '@/components/WeekStrip'
 import MacroDonut from '@/components/MacroDonut'
 import WeightTracker from '@/components/WeightTracker'
+import FastingTimer from '@/components/FastingTimer'
+import AdaptiveTDEE from '@/components/AdaptiveTDEE'
 
 interface Meal {
   id: string; name: string | null; photo_path: string | null
@@ -16,7 +18,17 @@ interface Meal {
   fat: number; meal_type: string; notes: string | null; created_at: number
 }
 interface DailyStats { calories: number; protein: number; carbs: number; fat: number }
-interface Settings { calorie_goal: number | null; gemini_api_key: string | null }
+interface Settings {
+  calorie_goal: number | null; gemini_api_key: string | null
+  fasting_enabled: boolean | null
+  fasting_protocol: string | null
+  fasting_start: string | null
+  fasting_end: string | null
+  carb_cycling_enabled: boolean | null
+  training_days: string | null
+  training_calorie_goal: number | null
+  rest_calorie_goal: number | null
+}
 interface WeekDay { date: string; calories: number; meal_count: number; water_ml: number; water_glasses: number }
 interface WeightLog { date: string; weight_kg: number }
 
@@ -60,6 +72,7 @@ export default function Dashboard() {
   const [coachTip, setCoachTip]   = useState<string | null>(null)
   const [coachLoading, setCoachLoading] = useState(false)
   const [coachError, setCoachError] = useState('')
+  const [adaptiveTDEE, setAdaptiveTDEE] = useState<{ tdee: number; confidence: 'high'|'medium'|'low'; days: number } | null>(null)
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -85,6 +98,7 @@ export default function Dashboard() {
       setWeightLogs(weightData.logs || [])
       setLoading(false)
     })
+    fetch('/api/tdee').then(r => r.json()).then(d => { if (d.adaptive) setAdaptiveTDEE(d.adaptive) })
   }, [today, router])
 
   // Day-specific: meals, stats, water — reloads when viewDay changes
@@ -111,7 +125,16 @@ export default function Dashboard() {
     setCoachLoading(false)
   }
 
-  const goal = settings?.calorie_goal || 2000
+  const goal = (() => {
+    if (settings?.carb_cycling_enabled && viewDay === today) {
+      const dayOfWeek = new Date().getDay() // 0=Sun, 1=Mon...
+      const trainingDays = (settings.training_days || '').split(',').map(Number)
+      if (trainingDays.includes(dayOfWeek)) return settings.training_calorie_goal || settings.calorie_goal || 2000
+      return settings.rest_calorie_goal || settings.calorie_goal || 2000
+    }
+    return settings?.calorie_goal || 2000
+  })()
+
   const remaining = Math.round(goal - stats.calories)
   const percent = Math.min(100, Math.round((stats.calories / goal) * 100))
   const isViewingToday = viewDay === today
@@ -181,6 +204,17 @@ export default function Dashboard() {
             onSelect={(date) => setViewDay(date)}
           />
         </section>
+
+        {/* Fasting Timer */}
+        {isViewingToday && settings?.fasting_enabled && (
+          <section className="animate-fadeInUp" style={{ animationDelay: '0.08s' }}>
+            <FastingTimer
+              protocol={settings.fasting_protocol || '16:8'}
+              startTime={settings.fasting_start || '12:00'}
+              endTime={settings.fasting_end || '20:00'}
+            />
+          </section>
+        )}
 
         {/* Viewing past day banner */}
         {!isViewingToday && (
@@ -335,6 +369,23 @@ export default function Dashboard() {
         {coachError && (
           <div className="rounded-2xl bg-red-500/10 px-4 py-3 text-xs text-red-400 border border-red-500/20 animate-fadeIn">
             {coachError}
+          </div>
+        )}
+
+        {/* Adaptive TDEE widget */}
+        {isViewingToday && adaptiveTDEE && (
+          <div className="animate-fadeInUp" style={{ animationDelay: '0.21s' }}>
+            <AdaptiveTDEE
+              tdee={adaptiveTDEE.tdee}
+              confidence={adaptiveTDEE.confidence}
+              days={adaptiveTDEE.days}
+              currentGoal={settings?.calorie_goal || null}
+              onAccept={async (tdee) => {
+                await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calorie_goal: tdee }) })
+                setSettings(s => s ? { ...s, calorie_goal: tdee } : s)
+                setAdaptiveTDEE(null)
+              }}
+            />
           </div>
         )}
 

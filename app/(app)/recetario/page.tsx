@@ -31,6 +31,11 @@ export default function RecetarioPage() {
   const [formError, setFormError] = useState('')
   const formPhotoRef = useRef<HTMLInputElement>(null)
 
+  const [showUrlImport, setShowUrlImport] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState('')
+
   useEffect(() => {
     fetch('/api/recetario').then(r => r.json()).then(d => { setRecipes(d.recipes || []); setLoading(false) })
   }, [])
@@ -102,6 +107,27 @@ export default function RecetarioPage() {
     setUploadingPhoto(null)
   }
 
+  async function importFromUrl() {
+    if (!importUrl.trim()) return
+    setImporting(true); setImportError('')
+    try {
+      const res = await fetch('/api/recetario/import-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: importUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setImportError(data.error || 'Error'); setImporting(false); return }
+      // Pre-fill the form with imported data
+      const { name, ingredients, servings } = data
+      setForm({ name, description: '', ingredients: ingredients.join('\n'), instructions: '', servings: String(servings) })
+      setShowUrlImport(false)
+      setShowForm(true)
+      setImportUrl('')
+    } catch { setImportError('Error de conexión') }
+    setImporting(false)
+  }
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
 
   return (
@@ -111,10 +137,23 @@ export default function RecetarioPage() {
           <h1 className="text-2xl font-bold text-zinc-100">Recetario</h1>
           <p className="text-xs text-zinc-500 mt-0.5 uppercase tracking-widest">{recipes.length} receta{recipes.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-brand-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-          Nueva
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.push('/planner')}
+            className="flex items-center gap-1.5 glass-btn text-white/70 text-sm font-semibold px-3 py-2.5 rounded-2xl active:scale-95 transition-transform">
+            📅 Planificador →
+          </button>
+          <button onClick={() => setShowUrlImport(true)}
+            className="flex items-center gap-1.5 glass-btn text-white/70 text-sm font-semibold px-3 py-2.5 rounded-2xl active:scale-95 transition-transform">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+            URL
+          </button>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-brand-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl active:scale-95 transition-transform" style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            Nueva
+          </button>
+        </div>
       </div>
 
       <div className="px-4 py-4 space-y-3">
@@ -281,6 +320,34 @@ export default function RecetarioPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showUrlImport && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="glass-strong w-full max-w-lg mx-auto rounded-t-3xl p-6 space-y-4">
+            <h3 className="text-lg font-bold text-white">Importar receta desde URL</h3>
+            <p className="text-sm text-white/45">Pega el enlace de cualquier blog de cocina o receta online. La app extraerá los ingredientes automáticamente.</p>
+            <input
+              value={importUrl}
+              onChange={e => setImportUrl(e.target.value)}
+              placeholder="https://www.recetasgratis.net/receta-de-..."
+              className="glass-input w-full px-4 py-3 rounded-2xl text-sm"
+              autoFocus
+            />
+            {importError && <p className="text-sm text-red-400">{importError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => { setShowUrlImport(false); setImportUrl('') }}
+                className="flex-1 glass-btn rounded-2xl py-3 text-white/70 font-semibold text-sm">
+                Cancelar
+              </button>
+              <button onClick={importFromUrl} disabled={importing || !importUrl.trim()}
+                className="flex-1 rounded-2xl py-3 font-bold text-white text-sm active:scale-95 transition-transform disabled:opacity-50"
+                style={{ background: 'linear-gradient(145deg, #1F8FFF, #0A6BE0)' }}>
+                {importing ? 'Importando…' : 'Importar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

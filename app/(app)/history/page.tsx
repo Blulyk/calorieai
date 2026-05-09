@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import MealCard from '@/components/MealCard'
 import Link from 'next/link'
+import WeightChart from '@/components/WeightChart'
 
 interface DayData {
   date: string
@@ -80,6 +81,7 @@ export default function HistoryPage() {
   const [loadingMeals, setLoadingMeals] = useState(false)
   const [loading, setLoading]           = useState(true)
   const [view, setView]                 = useState<'calendar' | 'week'>('calendar')
+  const [weightLogs, setWeightLogs]     = useState<{date: string; weight_kg: number}[]>([])
 
   const totalDays  = getDaysInMonth(year, month)
   const startOffset = getFirstDayOffset(year, month)
@@ -101,6 +103,7 @@ export default function HistoryPage() {
       setStats(hist.stats || [])
       setLoading(false)
     })
+    fetch('/api/weight').then(r => r.json()).then(d => setWeightLogs(d.logs || []))
   }, [year, month, startDate, endDate])
 
   // Load meals for selected date
@@ -510,6 +513,10 @@ export default function HistoryPage() {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {weightLogs.length >= 2 && (
+                  <WeightChart logs={weightLogs} />
                 )}
 
                 {/* Achievements with real progress bars */}
