@@ -7,6 +7,8 @@ import CalorieRing, { type CalorieSegment } from '@/components/CalorieRing'
 import MealCard from '@/components/MealCard'
 import WaterTracker from '@/components/WaterTracker'
 import WeekStrip from '@/components/WeekStrip'
+import MacroDonut from '@/components/MacroDonut'
+import WeightTracker from '@/components/WeightTracker'
 
 interface Meal {
   id: string; name: string | null; photo_path: string | null
@@ -16,6 +18,7 @@ interface Meal {
 interface DailyStats { calories: number; protein: number; carbs: number; fat: number }
 interface Settings { calorie_goal: number | null; gemini_api_key: string | null }
 interface WeekDay { date: string; calories: number; meal_count: number; water_ml: number; water_glasses: number }
+interface WeightLog { date: string; weight_kg: number }
 
 function useCountUp(target: number, duration = 700, delay = 0) {
   const [value, setValue] = useState(0)
@@ -51,6 +54,7 @@ export default function Dashboard() {
   const [weekData, setWeekData]   = useState<WeekDay[]>([])
   const [username, setUsername]   = useState('')
   const [streak, setStreak]       = useState(0)
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [loading, setLoading]     = useState(true)
   const [dayLoading, setDayLoading] = useState(false)
   const [coachTip, setCoachTip]   = useState<string | null>(null)
@@ -72,11 +76,13 @@ export default function Dashboard() {
       fetch('/api/auth/me').then(r => r.json()),
       fetch(`/api/history?type=week&start=${start}&end=${today}`).then(r => r.json()),
       fetch('/api/streak').then(r => r.json()),
-    ]).then(([me, history, streakData]) => {
+      fetch('/api/weight').then(r => r.json()),
+    ]).then(([me, history, streakData, weightData]) => {
       setUsername(me.username || '')
       setSettings(me.settings)
       setWeekData(history.stats || [])
       setStreak(streakData.streak || 0)
+      setWeightLogs(weightData.logs || [])
       setLoading(false)
     })
   }, [today, router])
@@ -253,6 +259,13 @@ export default function Dashboard() {
           </div>
         </section>
 
+        {/* Macro donut */}
+        {(stats.protein + stats.carbs + stats.fat) > 0 && (
+          <div className="animate-fadeInUp" style={{ animationDelay: '0.16s' }}>
+            <MacroDonut protein={stats.protein} carbs={stats.carbs} fat={stats.fat} />
+          </div>
+        )}
+
         {/* Streak + Coach row */}
         <div className="grid grid-cols-2 gap-3 animate-fadeInUp" style={{ animationDelay: '0.18s' }}>
           {/* Streak card */}
@@ -329,6 +342,13 @@ export default function Dashboard() {
         {isViewingToday && (
           <div className="animate-fadeInUp" style={{ animationDelay: '0.22s' }}>
             <WaterTracker glasses={water} date={today} onChange={setWater} />
+          </div>
+        )}
+
+        {/* Weight tracker */}
+        {isViewingToday && (
+          <div className="animate-fadeInUp" style={{ animationDelay: '0.25s' }}>
+            <WeightTracker logs={weightLogs} onLogged={setWeightLogs} />
           </div>
         )}
 

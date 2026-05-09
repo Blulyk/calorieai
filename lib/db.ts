@@ -88,6 +88,15 @@ function initSchema(db: DatabaseSync) {
       updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_recipes_user ON recipes(user_id);
+
+    CREATE TABLE IF NOT EXISTS weight_logs (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date       TEXT NOT NULL,
+      weight_kg  REAL NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_weight_user ON weight_logs(user_id, date);
   `)
 
   try {
@@ -381,6 +390,33 @@ export function getStreak(userId: string): number {
     } else break
   }
   return streak
+}
+
+// ─── Weight queries ────────────────────────────────────────────────────────────
+
+export interface WeightLog {
+  id: string
+  user_id: string
+  date: string
+  weight_kg: number
+  created_at: number
+}
+
+export function logWeight(userId: string, date: string, weightKg: number) {
+  const db = getDb()
+  const existing = db.prepare('SELECT id FROM weight_logs WHERE user_id = ? AND date = ?').get(userId, date)
+  if (existing) {
+    db.prepare('UPDATE weight_logs SET weight_kg = ? WHERE user_id = ? AND date = ?').run(weightKg, userId, date)
+  } else {
+    const { randomUUID } = require('crypto') as typeof import('crypto')
+    db.prepare('INSERT INTO weight_logs (id, user_id, date, weight_kg) VALUES (?, ?, ?, ?)').run(randomUUID(), userId, date, weightKg)
+  }
+}
+
+export function getWeightLogs(userId: string, limit = 14): WeightLog[] {
+  return getDb().prepare(
+    'SELECT * FROM weight_logs WHERE user_id = ? ORDER BY date DESC LIMIT ?'
+  ).all(userId, limit) as unknown as WeightLog[]
 }
 
 export function getRecentFoods(userId: string, limit = 6): Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; portion: string }> {
