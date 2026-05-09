@@ -16,6 +16,7 @@ export default function RecetarioPage() {
   const router = useRouter()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [logging, setLogging] = useState<string | null>(null)
@@ -116,6 +117,22 @@ export default function RecetarioPage() {
       </div>
 
       <div className="px-4 py-4 space-y-3">
+        {/* Search bar */}
+        <div className="glass rounded-2xl flex items-center gap-3 px-4" style={{ height: 46 }}>
+          <svg className="h-4 w-4 text-white/35 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar recetas e ingredientes…"
+            className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="text-white/40 text-lg leading-none">×</button>
+          )}
+        </div>
+
         {recipes.length === 0 && (
           <div className="glass-strong rounded-3xl p-10 text-center mt-4">
             <div className="text-5xl mb-3">📖</div>
@@ -125,7 +142,7 @@ export default function RecetarioPage() {
           </div>
         )}
 
-        {recipes.map(recipe => (
+        {recipes.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()) || (r.ingredients || []).some((ing: string) => ing.toLowerCase().includes(search.toLowerCase()))).map(recipe => (
           <div key={recipe.id} className="glass rounded-2xl overflow-hidden animate-fade-in">
             {recipe.photo_path && (
               <div className="relative w-full h-44">

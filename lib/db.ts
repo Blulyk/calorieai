@@ -360,3 +360,48 @@ export interface Recipe {
   created_at: number
   updated_at: number
 }
+
+export function getStreak(userId: string): number {
+  const db = getDb()
+  const rows = db.prepare(
+    `SELECT DISTINCT date FROM meals WHERE user_id = ? ORDER BY date DESC`
+  ).all(userId) as { date: string }[]
+  if (rows.length === 0) return 0
+  const today = new Date().toISOString().split('T')[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  if (rows[0].date !== today && rows[0].date !== yesterday) return 0
+  let streak = 0
+  let check = rows[0].date
+  for (const row of rows) {
+    if (row.date === check) {
+      streak++
+      const d = new Date(check + 'T12:00:00')
+      d.setDate(d.getDate() - 1)
+      check = d.toISOString().split('T')[0]
+    } else break
+  }
+  return streak
+}
+
+export function getRecentFoods(userId: string, limit = 6): Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; portion: string }> {
+  const db = getDb()
+  const meals = db.prepare(
+    `SELECT foods FROM meals WHERE user_id = ? ORDER BY created_at DESC LIMIT 40`
+  ).all(userId) as { foods: string }[]
+  const seen = new Set<string>()
+  const result: Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; portion: string }> = []
+  for (const meal of meals) {
+    try {
+      const foods = JSON.parse(meal.foods) as Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; portion: string }>
+      for (const food of foods) {
+        const key = food.name.toLowerCase().trim()
+        if (!seen.has(key) && result.length < limit) {
+          seen.add(key)
+          result.push(food)
+        }
+      }
+    } catch { /* skip bad JSON */ }
+    if (result.length >= limit) break
+  }
+  return result
+}

@@ -3,37 +3,38 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const NAV = [
-  {
-    href: '/',
-    label: 'Inicio',
-    icon: 'M3 11.5 12 4l9 7.5M5.5 10v9.25h4.25v-5.5h4.5v5.5h4.25V10',
-  },
-  {
-    href: '/recetario',
-    label: 'Recetas',
-    icon: 'M5 5.5c2.5-1.2 4.8-.9 7 1v13c-2.2-1.7-4.7-1.9-7-1V5.5Zm7 1c2.2-1.9 4.7-2.2 7-1v13c-2.3-.9-4.8-.7-7 1',
-  },
-  {
-    href: '/log',
-    label: '',
-    special: true,
-    icon: 'M12 5v14m7-7H5',
-  },
-  {
-    href: '/history',
-    label: 'Historial',
-    icon: 'M4 19V9m5 10V5m5 14v-7m5 7V7',
-  },
-  {
-    href: '/profile',
-    label: 'Perfil',
-    icon: 'M15.5 8.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM5 20c1.2-3.2 3.6-5 7-5s5.8 1.8 7 5',
-  },
+const NAV_LEFT = [
+  { href: '/', label: 'Inicio', icon: 'M3 11.5 12 4l9 7.5M5.5 10v9.25h4.25v-5.5h4.5v5.5h4.25V10' },
+  { href: '/recetario', label: 'Recetas', icon: 'M5 5.5c2.5-1.2 4.8-.9 7 1v13c-2.2-1.7-4.7-1.9-7-1V5.5Zm7 1c2.2-1.9 4.7-2.2 7-1v13c-2.3-.9-4.8-.7-7 1' },
+]
+const NAV_RIGHT = [
+  { href: '/history', label: 'Historial', icon: 'M12 3a9 9 0 1 0 9 9M12 3v9l4 2' },
+  { href: '/profile', label: 'Perfil', icon: 'M15.5 8.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM5 20c1.2-3.2 3.6-5 7-5s5.8 1.8 7 5' },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const isLog = pathname === '/log'
+
+  function TabBtn({ href, label, icon }: { href: string; label: string; icon: string }) {
+    const active = pathname === href
+    return (
+      <Link href={href} className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2"
+        style={{ opacity: active ? 1 : 0.5, transition: 'opacity 0.2s' }}>
+        <div style={{
+          width: 40, height: 26, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
+          border: active ? '0.5px solid rgba(255,255,255,0.16)' : '0.5px solid transparent',
+          transition: 'all 0.25s',
+        }}>
+          <svg className="h-[18px] w-[18px] text-white" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} viewBox="0 0 24 24">
+            <path d={icon} />
+          </svg>
+        </div>
+        <span className="text-[9.5px] font-semibold text-white" style={{ letterSpacing: '0.02em' }}>{label}</span>
+      </Link>
+    )
+  }
 
   return (
     <nav
@@ -47,42 +48,44 @@ export default function BottomNav() {
         marginRight: 'auto',
         height: '68px',
         borderRadius: '9999px',
+        overflow: 'visible',
       }}
     >
-      <div className="flex h-full items-center justify-between px-2">
-        {NAV.map(item => {
-          const active = pathname === item.href
-          const isLog = item.special
+      <div className="flex h-full items-center px-2">
+        {/* Left tabs */}
+        <div className="flex flex-1">
+          {NAV_LEFT.map(t => <TabBtn key={t.href} {...t} />)}
+        </div>
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`relative flex h-[56px] w-[58px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-full transition-all active:scale-95 ${
-                active && !isLog ? 'text-white' : 'text-zinc-400'
-              }`}
-            >
-              {active && !isLog && (
-                <span className="absolute inset-0 rounded-full bg-white/10 ring-1 ring-white/12" />
-              )}
+        {/* FAB spacer + floating button */}
+        <div className="relative flex w-16 flex-shrink-0 flex-col items-center" style={{ marginTop: -10 }}>
+          {/* dot indicator */}
+          <span style={{
+            width: 5, height: 5, borderRadius: 3, marginBottom: 4, display: 'block',
+            background: isLog ? '#0A84FF' : 'rgba(255,255,255,0.45)',
+            boxShadow: isLog ? '0 0 8px #0A84FF' : 'none',
+            transition: 'all 0.25s',
+          }} />
+          <Link href="/log">
+            <div style={{
+              width: 56, height: 56, borderRadius: 28,
+              background: 'linear-gradient(180deg, #1F8FFF 0%, #0A6BE0 100%)',
+              boxShadow: '0 0 0 4px rgba(10,10,11,0.7), 0 0 0 5px rgba(255,255,255,0.06), 0 8px 22px -4px rgba(10,132,255,0.55), inset 0 1px 0 rgba(255,255,255,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transform: isLog ? 'scale(1.04)' : 'scale(1)',
+              transition: 'transform 0.25s cubic-bezier(.5,1.4,.4,1)',
+            }}>
+              <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </div>
+          </Link>
+        </div>
 
-              {isLog ? (
-                <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-[#0071e3] text-white ${active ? 'ring-4 ring-[#0071e3]/24' : ''}`}>
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} viewBox="0 0 24 24">
-                    <path d={item.icon} />
-                  </svg>
-                </span>
-              ) : (
-                <>
-                  <svg className="relative h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} viewBox="0 0 24 24">
-                    <path d={item.icon} />
-                  </svg>
-                  <span className="relative text-[10px] font-semibold leading-none">{item.label}</span>
-                </>
-              )}
-            </Link>
-          )
-        })}
+        {/* Right tabs */}
+        <div className="flex flex-1">
+          {NAV_RIGHT.map(t => <TabBtn key={t.href} {...t} />)}
+        </div>
       </div>
     </nav>
   )

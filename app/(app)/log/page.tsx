@@ -6,6 +6,8 @@ import Image from 'next/image'
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
+interface RecentFood { name: string; calories: number; protein: number; carbs: number; fat: number; portion: string }
+
 interface FoodItem {
   name: string; portion: string; calories: number
   protein: number; carbs: number; fat: number; fiber: number
@@ -73,9 +75,11 @@ export default function LogPage() {
   const [analysisStatus, setAnalysisStatus] = useState('')
   const [retryCount, setRetryCount] = useState(0)
   const [saving,   setSaving]   = useState(false)
+  const [recentFoods, setRecentFoods] = useState<RecentFood[]>([])
 
   useEffect(() => {
     setMealType(guessCurrentMeal())
+    fetch('/api/meals/recent').then(r => r.json()).then(d => setRecentFoods(d.foods || []))
   }, [])
 
   const handleFile = useCallback((f: File) => {
@@ -145,6 +149,34 @@ export default function LogPage() {
     }
   }
 
+  async function addRecent(food: RecentFood) {
+    setSaving(true); setError('')
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const res = await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: today,
+          meal_type: mealType,
+          name: food.name,
+          foods: [food],
+          calories: food.calories,
+          protein: food.protein,
+          carbs: food.carbs,
+          fat: food.fat,
+          fiber: 0,
+        }),
+      })
+      if (res.ok) router.replace('/')
+      else { const d = await res.json(); setError(d.error || 'Error al guardar') }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function save() {
     if (!file || !result) return
     setSaving(true); setError('')
@@ -202,6 +234,7 @@ export default function LogPage() {
 
         {/* Upload area */}
         {!preview ? (
+          <>
           <div className="glass rounded-3xl p-6">
             <div
               onClick={() => fileRef.current?.click()}
@@ -248,6 +281,30 @@ export default function LogPage() {
               Añadir del recetario
             </button>
           </div>
+
+          {recentFoods.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/38 mb-3 px-1">Recientes</p>
+              <div className="glass rounded-[1.4rem] overflow-hidden">
+                {recentFoods.map((f, i) => (
+                  <div key={f.name} className="flex items-center gap-3 px-4 py-3"
+                    style={{ borderBottom: i < recentFoods.length - 1 ? '0.5px solid rgba(255,255,255,0.07)' : 'none' }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white leading-tight line-clamp-1">{f.name}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{f.portion} · {Math.round(f.calories)} kcal</p>
+                    </div>
+                    <button onClick={() => addRecent(f)}
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0A84FF] active:scale-90 transition-transform">
+                      <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          </>
         ) : (
           <>
             <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.10)' }}>
