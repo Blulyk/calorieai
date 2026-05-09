@@ -78,6 +78,7 @@ export default function RecetarioPage() {
         carbs: recipe.carbs,
         fat: recipe.fat,
         fiber: recipe.fiber,
+        photo_path: recipe.photo_path || null,
         notes: 'Añadido desde el recetario',
       }),
     })

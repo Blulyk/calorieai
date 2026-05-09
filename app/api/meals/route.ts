@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         id:         uuid(),
         user_id:    session.userId,
         date:       typeof body.date === 'string' ? body.date : todayString(),
-        photo_path: null,
+        photo_path: typeof body.photo_path === 'string' ? body.photo_path : null,
         name:       typeof body.name === 'string' ? body.name : foods.map((f: { name?: string }) => f.name).filter(Boolean).join(', '),
         foods:      JSON.stringify(foods),
         calories:   asNumber(body.calories),

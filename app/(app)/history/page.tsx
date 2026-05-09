@@ -357,92 +357,220 @@ export default function HistoryPage() {
             </>
           )}
 
-          {view === 'week' && (
-            <div className="space-y-3">
-              {/* Bar chart */}
-              <div className="glass rounded-3xl p-5">
-                <div className="flex items-baseline justify-between mb-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/38">Esta semana</p>
-                </div>
-                <div className="flex items-end gap-2" style={{ height: 140 }}>
-                  {stats.map((d) => {
-                    const h = calGoal > 0 ? Math.min((d.calories / (calGoal * 1.3)) * 100, 100) : 0
-                    const isToday = d.date === todayISO
-                    const over = d.calories > calGoal
-                    const dayOfWeek = new Date(d.date + 'T12:00:00').getDay()
-                    const dayLabel = ['L','M','X','J','V','S','D'][dayOfWeek === 0 ? 6 : dayOfWeek - 1]
-                    return (
-                      <div key={d.date} className="flex flex-1 flex-col items-center gap-1.5 justify-end h-full">
-                        <div className="w-full rounded-lg flex-shrink-0" style={{
-                          height: `${Math.max(h, 4)}%`,
-                          background: isToday ? '#FF9F0A' : over ? '#FF453A44' : 'rgba(255,255,255,0.16)',
-                          boxShadow: isToday ? '0 0 14px #FF9F0A88' : 'none',
-                        }} />
-                        <span className="text-[10px] font-semibold" style={{ color: isToday ? '#fff' : 'rgba(235,235,245,0.45)' }}>
-                          {dayLabel}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+          {view === 'week' && (() => {
+            const DIAS_WEEK = ['L','M','X','J','V','S','D']
+            // Build the full Mon→Sun week slots
+            const dow2 = now.getDay() === 0 ? 6 : now.getDay() - 1
+            const weekSlots = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(now)
+              d.setDate(now.getDate() - dow2 + i)
+              return d.toISOString().split('T')[0]
+            })
 
-              {/* Macro donut — only shown if any macro data is available */}
-              {weekStats.length > 0 && (weekStats.some(d => (d.protein || 0) > 0 || (d.carbs || 0) > 0 || (d.fat || 0) > 0)) && (
+            const activeDays  = weekSlots.filter(iso => (statsMap[iso]?.meal_count ?? 0) > 0).length
+            const hydratedDays = weekSlots.filter(iso => (statsMap[iso]?.water_ml ?? 0) >= 2500).length
+            const goalDays    = weekSlots.filter(iso => {
+              const s = statsMap[iso]
+              return s && s.calories >= calGoal * 0.85 && s.calories <= calGoal * 1.1
+            }).length
+            const totalMeals  = weekSlots.reduce((sum, iso) => sum + (statsMap[iso]?.meal_count ?? 0), 0)
+
+            const achievements = [
+              {
+                id: 'active',
+                color: '#32D74B',
+                label: 'Semana activa',
+                desc: 'Días con comidas registradas',
+                current: activeDays,
+                total: 7,
+                unlocked: activeDays >= 5,
+                icon: (c: string) => (
+                  <svg className="h-4 w-4" fill="none" stroke={c} strokeWidth={2.2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c1 4 5 5 10a5 5 0 11-10 0c0-3 2-4 2-7 1 1 2 2 3 0z" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'hydration',
+                color: '#5AC8FA',
+                label: 'Hidratado',
+                desc: 'Días con ≥ 2.5 L de agua',
+                current: hydratedDays,
+                total: 7,
+                unlocked: hydratedDays >= 3,
+                icon: (c: string) => (
+                  <svg className="h-4 w-4" fill="none" stroke={c} strokeWidth={2.2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2C6 10 4 13 4 16a8 8 0 0 0 16 0c0-3-2-6-8-14z" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'goal',
+                color: '#BF5AF2',
+                label: 'Objetivo cumplido',
+                desc: 'Días en rango calórico',
+                current: goalDays,
+                total: 7,
+                unlocked: goalDays >= 3,
+                icon: (c: string) => (
+                  <svg className="h-4 w-4" fill="none" stroke={c} strokeWidth={2.2} viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill={c}/>
+                  </svg>
+                ),
+              },
+              {
+                id: 'meals',
+                color: '#FF9F0A',
+                label: 'Constante',
+                desc: 'Comidas registradas esta semana',
+                current: Math.min(totalMeals, 14),
+                total: 14,
+                unlocked: totalMeals >= 10,
+                icon: (c: string) => (
+                  <svg className="h-4 w-4" fill="none" stroke={c} strokeWidth={2.2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h18M3 18h18" />
+                  </svg>
+                ),
+              },
+            ]
+
+            const totalProt  = weekSlots.reduce((s, iso) => s + (statsMap[iso]?.protein ?? 0), 0)
+            const totalCarbs = weekSlots.reduce((s, iso) => s + (statsMap[iso]?.carbs ?? 0), 0)
+            const totalFat   = weekSlots.reduce((s, iso) => s + (statsMap[iso]?.fat ?? 0), 0)
+
+            return (
+              <div className="space-y-3">
+                {/* Bar chart */}
                 <div className="glass rounded-3xl p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/38 mb-4">Reparto macros</p>
-                  <div className="flex items-center gap-5">
-                    <DonutMacros
-                      protein={weekStats.reduce((s, d) => s + (d.protein || 0), 0)}
-                      carbs={weekStats.reduce((s, d) => s + (d.carbs || 0), 0)}
-                      fat={weekStats.reduce((s, d) => s + (d.fat || 0), 0)}
-                    />
-                    <div className="flex flex-col gap-2 flex-1">
-                      {[
-                        { l: 'Carbos', c: '#FF9F0A' },
-                        { l: 'Proteína', c: '#32D74B' },
-                        { l: 'Grasa', c: '#FFD60A' },
-                      ].map(r => (
-                        <div key={r.l} className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: r.c, boxShadow: `0 0 6px ${r.c}` }} />
-                          <span className="flex-1 text-xs text-white/80">{r.l}</span>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/38 mb-4">Esta semana</p>
+                  <div className="flex items-end gap-1.5" style={{ height: 130 }}>
+                    {weekSlots.map((iso, idx) => {
+                      const s = statsMap[iso]
+                      const cal = s?.calories ?? 0
+                      const h = calGoal > 0 ? Math.min((cal / (calGoal * 1.3)) * 100, 100) : 0
+                      const isToday2 = iso === todayISO
+                      const over2 = cal > calGoal
+                      const isFuture2 = iso > todayISO
+                      return (
+                        <div key={iso} className="flex flex-1 flex-col items-center gap-1.5 justify-end h-full">
+                          {cal > 0 && (
+                            <span className="text-[9px] font-bold tabular-nums"
+                              style={{ color: isToday2 ? '#FF9F0A' : 'rgba(235,235,245,0.4)' }}>
+                              {Math.round(cal / 100) * 100}
+                            </span>
+                          )}
+                          <div className="w-full rounded-xl flex-shrink-0 transition-all" style={{
+                            height: `${Math.max(isFuture2 ? 2 : h, cal > 0 ? 6 : 2)}%`,
+                            background: isFuture2
+                              ? 'rgba(255,255,255,0.05)'
+                              : isToday2
+                              ? 'linear-gradient(180deg, #FFB340, #FF9F0A)'
+                              : over2
+                              ? 'linear-gradient(180deg, #FF6B6B, #FF453A88)'
+                              : cal > 0
+                              ? 'rgba(255,255,255,0.22)'
+                              : 'rgba(255,255,255,0.06)',
+                            boxShadow: isToday2 ? '0 0 14px #FF9F0A66' : 'none',
+                          }} />
+                          <span className="text-[10px] font-semibold"
+                            style={{ color: isToday2 ? '#fff' : 'rgba(235,235,245,0.4)' }}>
+                            {DIAS_WEEK[idx]}
+                          </span>
                         </div>
-                      ))}
-                    </div>
+                      )
+                    })}
+                  </div>
+                  {/* Goal line label */}
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.05]">
+                    <div className="h-px flex-1 border-t border-dashed border-white/15" />
+                    <span className="text-[10px] text-white/30">Objetivo: {calGoal} kcal</span>
+                    <div className="h-px flex-1 border-t border-dashed border-white/15" />
                   </div>
                 </div>
-              )}
 
-              {/* Achievements */}
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/38 mb-3 px-1">Logros</p>
-                <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1" style={{ margin: '0 -4px', padding: '0 4px 4px' }}>
-                  {[
-                    { t: 'En racha', s: 'Registros consecutivos', c: '#FF9F0A', show: stats.some(d => d.meal_count > 0) },
-                    { t: 'Semana activa', s: `${stats.filter(d => d.meal_count > 0).length}/7 días`, c: '#32D74B', show: stats.filter(d => d.meal_count > 0).length >= 5 },
-                    { t: 'Hidratado', s: 'Objetivo de agua', c: '#5AC8FA', show: stats.some(d => (d.water_ml || 0) >= 2500) },
-                    { t: 'Objetivo cumplido', s: 'Calorías en rango', c: '#BF5AF2', show: stats.some(d => d.calories >= calGoal * 0.85 && d.calories <= calGoal * 1.1) },
-                  ].filter(a => a.show).map(a => (
-                    <div key={a.t} className="glass rounded-[1.4rem] p-4 flex-shrink-0" style={{ minWidth: 140, borderColor: `${a.c}22` }}>
-                      <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2"
-                        style={{ background: `${a.c}22`, border: `0.5px solid ${a.c}44` }}>
-                        <svg className="h-4 w-4" fill="none" stroke={a.c} strokeWidth={2.2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4 4 10-10" />
-                        </svg>
+                {/* Macro donut */}
+                {(totalProt + totalCarbs + totalFat) > 0 && (
+                  <div className="glass rounded-3xl p-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/38 mb-4">Reparto macros semanal</p>
+                    <div className="flex items-center gap-5">
+                      <DonutMacros protein={totalProt} carbs={totalCarbs} fat={totalFat} />
+                      <div className="flex flex-col gap-3 flex-1">
+                        {[
+                          { l: 'Carbohidratos', v: Math.round(totalCarbs), c: '#FF9F0A' },
+                          { l: 'Proteína',      v: Math.round(totalProt),  c: '#32D74B' },
+                          { l: 'Grasa',         v: Math.round(totalFat),   c: '#FFD60A' },
+                        ].map(r => (
+                          <div key={r.l} className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full flex-shrink-0"
+                              style={{ background: r.c, boxShadow: `0 0 5px ${r.c}99` }} />
+                            <span className="flex-1 text-xs text-white/70">{r.l}</span>
+                            <span className="text-xs font-bold text-white tabular-nums">{r.v}g</span>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-sm font-bold text-white">{a.t}</p>
-                      <p className="text-[10px] text-white/40 mt-0.5">{a.s}</p>
                     </div>
-                  ))}
-                  {stats.filter(d => d.meal_count > 0).length === 0 && (
-                    <div className="glass rounded-[1.4rem] p-4 flex-shrink-0" style={{ minWidth: 200 }}>
-                      <p className="text-sm text-white/40">Sin logros esta semana aún</p>
-                    </div>
-                  )}
+                  </div>
+                )}
+
+                {/* Achievements with real progress bars */}
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/38 mb-3 px-1">Logros</p>
+                  <div className="space-y-2.5">
+                    {achievements.map(a => {
+                      const pct = Math.min(a.current / a.total, 1)
+                      return (
+                        <div key={a.id} className="glass rounded-2xl p-4"
+                          style={{
+                            border: a.unlocked ? `0.5px solid ${a.color}30` : '0.5px solid rgba(255,255,255,0.08)',
+                            opacity: a.current === 0 ? 0.55 : 1,
+                          }}>
+                          <div className="flex items-center gap-3 mb-2.5">
+                            <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                              style={{
+                                background: a.unlocked ? `${a.color}22` : 'rgba(255,255,255,0.07)',
+                                border: `0.5px solid ${a.unlocked ? a.color + '44' : 'rgba(255,255,255,0.1)'}`,
+                              }}>
+                              {a.icon(a.unlocked ? a.color : 'rgba(235,235,245,0.4)')}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-bold text-white truncate">{a.label}</p>
+                                <span className="text-xs font-bold tabular-nums flex-shrink-0"
+                                  style={{ color: a.unlocked ? a.color : 'rgba(235,235,245,0.35)' }}>
+                                  {a.current}/{a.total}
+                                </span>
+                              </div>
+                              <p className="text-[10.5px] text-white/38 mt-0.5">{a.desc}</p>
+                            </div>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="h-1.5 rounded-full overflow-hidden"
+                            style={{ background: 'rgba(255,255,255,0.07)' }}>
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{
+                                width: `${pct * 100}%`,
+                                background: a.unlocked
+                                  ? `linear-gradient(90deg, ${a.color}99, ${a.color})`
+                                  : 'rgba(255,255,255,0.2)',
+                                boxShadow: a.unlocked ? `0 0 8px ${a.color}66` : 'none',
+                              }} />
+                          </div>
+                          {a.unlocked && (
+                            <div className="flex items-center gap-1 mt-2">
+                              <svg className="h-3 w-3" fill="none" stroke={a.color} strokeWidth={2.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4 4 10-10" />
+                              </svg>
+                              <span className="text-[10px] font-semibold" style={{ color: a.color }}>¡Logro desbloqueado!</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
         </div>
       )}

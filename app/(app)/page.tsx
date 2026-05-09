@@ -37,21 +37,23 @@ function useCountUp(target: number, duration = 700, delay = 0) {
   return value
 }
 
-// Macro colors matching design
 const MC = { protein: '#32D74B', carbs: '#FF9F0A', fat: '#FFD60A' }
 
 export default function Dashboard() {
   const router = useRouter()
   const today = new Date().toISOString().split('T')[0]
-  const [meals, setMeals]       = useState<Meal[]>([])
-  const [stats, setStats]       = useState<DailyStats>({ calories: 0, protein: 0, carbs: 0, fat: 0 })
-  const [water, setWater]       = useState(0)
-  const [settings, setSettings] = useState<Settings | null>(null)
-  const [weekData, setWeekData] = useState<WeekDay[]>([])
-  const [username, setUsername] = useState('')
-  const [streak, setStreak]     = useState(0)
-  const [loading, setLoading]   = useState(true)
-  const [coachTip, setCoachTip] = useState<string | null>(null)
+
+  const [viewDay, setViewDay]     = useState(today)
+  const [meals, setMeals]         = useState<Meal[]>([])
+  const [stats, setStats]         = useState<DailyStats>({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+  const [water, setWater]         = useState(0)
+  const [settings, setSettings]   = useState<Settings | null>(null)
+  const [weekData, setWeekData]   = useState<WeekDay[]>([])
+  const [username, setUsername]   = useState('')
+  const [streak, setStreak]       = useState(0)
+  const [loading, setLoading]     = useState(true)
+  const [dayLoading, setDayLoading] = useState(false)
+  const [coachTip, setCoachTip]   = useState<string | null>(null)
   const [coachLoading, setCoachLoading] = useState(false)
   const [coachError, setCoachError] = useState('')
 
@@ -62,25 +64,35 @@ export default function Dashboard() {
     return 'Buenas noches'
   }
 
+  // Initial setup: me, week history, streak
   useEffect(() => {
     fetch('/api/setup').then(r => r.json()).then(d => { if (d.needsSetup) router.replace('/setup') })
     const start = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0]
     Promise.all([
       fetch('/api/auth/me').then(r => r.json()),
-      fetch(`/api/meals?date=${today}`).then(r => r.json()),
       fetch(`/api/history?type=week&start=${start}&end=${today}`).then(r => r.json()),
       fetch('/api/streak').then(r => r.json()),
-    ]).then(([me, daily, history, streakData]) => {
+    ]).then(([me, history, streakData]) => {
       setUsername(me.username || '')
       setSettings(me.settings)
-      setMeals(daily.meals || [])
-      setStats(daily.stats || { calories: 0, protein: 0, carbs: 0, fat: 0 })
-      setWater(daily.water || 0)
       setWeekData(history.stats || [])
       setStreak(streakData.streak || 0)
       setLoading(false)
     })
   }, [today, router])
+
+  // Day-specific: meals, stats, water — reloads when viewDay changes
+  useEffect(() => {
+    setDayLoading(true)
+    fetch(`/api/meals?date=${viewDay}`)
+      .then(r => r.json())
+      .then(d => {
+        setMeals(d.meals || [])
+        setStats(d.stats || { calories: 0, protein: 0, carbs: 0, fat: 0 })
+        setWater(d.water || 0)
+        setDayLoading(false)
+      })
+  }, [viewDay])
 
   async function askCoach() {
     setCoachLoading(true); setCoachError(''); setCoachTip(null)
@@ -96,6 +108,7 @@ export default function Dashboard() {
   const goal = settings?.calorie_goal || 2000
   const remaining = Math.round(goal - stats.calories)
   const percent = Math.min(100, Math.round((stats.calories / goal) * 100))
+  const isViewingToday = viewDay === today
 
   const segments: CalorieSegment[] = ['breakfast', 'lunch', 'dinner', 'snack']
     .map(type => ({
@@ -132,6 +145,10 @@ export default function Dashboard() {
   const dateLabel = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
     .replace(/^\w/, c => c.toUpperCase())
 
+  const viewDayLabel = isViewingToday ? null : new Date(viewDay + 'T12:00:00').toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }).replace(/^\w/, c => c.toUpperCase())
+
   return (
     <div className="liquid-page mx-auto min-h-screen max-w-lg pb-8">
       {/* Header */}
@@ -151,20 +168,54 @@ export default function Dashboard() {
 
         {/* Week strip */}
         <section className="glass rounded-[1.6rem] p-3 animate-fadeInUp" style={{ animationDelay: '0.05s' }}>
-          <WeekStrip data={weekData} goal={goal} />
+          <WeekStrip
+            data={weekData}
+            goal={goal}
+            selected={viewDay}
+            onSelect={(date) => setViewDay(date)}
+          />
         </section>
+
+        {/* Viewing past day banner */}
+        {!isViewingToday && (
+          <div
+            className="flex items-center justify-between rounded-2xl px-4 py-2.5 animate-fadeIn"
+            style={{ background: 'rgba(255,159,10,0.1)', border: '0.5px solid rgba(255,159,10,0.25)' }}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="h-3.5 w-3.5 text-[#FF9F0A]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3M3.05 11a9 9 0 1 0 .5-3" />
+              </svg>
+              <span className="text-xs font-semibold text-[#FF9F0A]">{viewDayLabel}</span>
+            </div>
+            <button
+              onClick={() => setViewDay(today)}
+              className="text-[10px] font-bold text-white/50 active:text-white transition-colors"
+            >
+              Volver a hoy →
+            </button>
+          </div>
+        )}
 
         {/* Hero calories */}
         <section className="text-center animate-fadeInUp" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-baseline justify-center gap-2 mt-1">
-            <span className="text-[4.4rem] font-bold leading-none tracking-tight text-white tabular-nums">
-              {animatedCal.toLocaleString('es-ES')}
-            </span>
-            <span className="text-xl font-semibold text-white/35">kcal</span>
-          </div>
-          <p className={`mt-1 text-sm font-semibold ${remaining < 0 ? 'text-[#FF453A]' : 'text-white/45'}`}>
-            {remaining < 0 ? `${Math.abs(remaining)} kcal por encima` : `${remaining} kcal restantes`}
-          </p>
+          {dayLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-baseline justify-center gap-2 mt-1">
+                <span className="text-[4.4rem] font-bold leading-none tracking-tight text-white tabular-nums">
+                  {animatedCal.toLocaleString('es-ES')}
+                </span>
+                <span className="text-xl font-semibold text-white/35">kcal</span>
+              </div>
+              <p className={`mt-1 text-sm font-semibold ${remaining < 0 ? 'text-[#FF453A]' : 'text-white/45'}`}>
+                {remaining < 0 ? `${Math.abs(remaining)} kcal por encima` : `${remaining} kcal restantes`}
+              </p>
+            </>
+          )}
         </section>
 
         {/* Ring + macros card */}
@@ -181,17 +232,17 @@ export default function Dashboard() {
             <CalorieRing segments={segments} goal={goal} />
           </div>
 
-          {/* Macro strip at bottom */}
           <div className="flex" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
             {[
-              { l: 'CARBOS', v: animatedCarbs, g: Math.round(stats.carbs), goal: 250, c: MC.carbs },
-              { l: 'PROTEÍNA', v: animatedProt, g: Math.round(stats.protein), goal: 140, c: MC.protein },
-              { l: 'GRASA', v: animatedFat, g: Math.round(stats.fat), goal: 70, c: MC.fat },
+              { l: 'CARBOS',    v: animatedCarbs, goal: 250, c: MC.carbs },
+              { l: 'PROTEÍNA',  v: animatedProt,  goal: 140, c: MC.protein },
+              { l: 'GRASA',     v: animatedFat,   goal: 70,  c: MC.fat },
             ].map((m, i, arr) => (
               <div key={m.l} className="flex-1 px-3 py-3 text-center"
                 style={{ borderRight: i < arr.length - 1 ? '0.5px solid rgba(255,255,255,0.06)' : 'none' }}>
                 <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: m.c, boxShadow: `0 0 6px ${m.c}99` }} />
+                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                    style={{ background: m.c, boxShadow: `0 0 6px ${m.c}99` }} />
                   <span className="text-[9.5px] font-bold uppercase tracking-wider text-white/40">{m.l}</span>
                 </div>
                 <div className="text-[17px] font-bold tabular-nums" style={{ letterSpacing: '-0.4px' }}>
@@ -202,11 +253,11 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Streak + API key nudge row */}
+        {/* Streak + Coach row */}
         <div className="grid grid-cols-2 gap-3 animate-fadeInUp" style={{ animationDelay: '0.18s' }}>
           {/* Streak card */}
           <div className="glass rounded-[1.4rem] p-4 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-[#FF9F0A] mb-1">
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: '#FF9F0A' }}>
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c1 4 5 5 5 10a5 5 0 11-10 0c0-3 2-4 2-7 1 1 2 2 3 0z" />
               </svg>
@@ -216,7 +267,7 @@ export default function Dashboard() {
             <span className="text-[10px] text-white/35 font-medium">{streak === 1 ? 'día' : 'días'} seguidos</span>
           </div>
 
-          {/* API key nudge OR coach trigger */}
+          {/* API key nudge OR coach card */}
           {settings && !settings.gemini_api_key ? (
             <Link href="/profile" className="glass rounded-[1.4rem] p-4 flex flex-col gap-1 justify-between">
               <div className="flex items-center gap-1.5 text-amber-400 mb-1">
@@ -226,23 +277,44 @@ export default function Dashboard() {
               <span className="text-[10px] text-amber-400 font-bold">Configurar →</span>
             </Link>
           ) : (
-            <button onClick={askCoach} disabled={coachLoading}
-              className="glass rounded-[1.4rem] p-4 flex flex-col gap-1 text-left w-full active:scale-95 transition-transform"
-              style={{ border: coachTip ? '0.5px solid rgba(125,122,255,0.25)' : undefined }}>
-              <div className="flex items-center gap-1.5 mb-1" style={{ color: '#7D7AFF' }}>
+            <div
+              className="glass rounded-[1.4rem] p-4 flex flex-col gap-2"
+              style={{ border: '0.5px solid rgba(125,122,255,0.18)' }}
+            >
+              <div className="flex items-center gap-1.5" style={{ color: '#7D7AFF' }}>
                 <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/>
+                  <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" />
                 </svg>
                 <span className="text-[9.5px] font-bold uppercase tracking-wider">Coach IA</span>
               </div>
+
               {coachLoading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-[#7D7AFF]" />
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-[#7D7AFF]" />
+                  <span className="text-[10px] text-white/35">Analizando…</span>
+                </div>
               ) : coachTip ? (
-                <p className="text-[11px] text-white/80 leading-snug line-clamp-3">{coachTip}</p>
+                <p className="text-[10.5px] text-white/75 leading-snug line-clamp-3 flex-1">{coachTip}</p>
               ) : (
-                <p className="text-[11px] text-white/40 leading-snug">Toca para recibir un consejo personalizado</p>
+                <p className="text-[10px] text-white/35 leading-snug flex-1">Consejo personalizado basado en tu día</p>
               )}
-            </button>
+
+              <button
+                onClick={askCoach}
+                disabled={coachLoading}
+                className="w-full rounded-xl py-2 text-xs font-bold transition-all active:scale-95"
+                style={{
+                  background: coachLoading
+                    ? 'rgba(125,122,255,0.1)'
+                    : 'linear-gradient(135deg, rgba(125,122,255,0.3), rgba(88,86,214,0.4))',
+                  color: '#A8A6FF',
+                  border: '0.5px solid rgba(125,122,255,0.25)',
+                  boxShadow: coachLoading ? 'none' : '0 2px 10px rgba(125,122,255,0.2)',
+                }}
+              >
+                {coachLoading ? '…' : coachTip ? 'Nuevo' : 'Pedir consejo'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -253,10 +325,12 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Water */}
-        <div className="animate-fadeInUp" style={{ animationDelay: '0.22s' }}>
-          <WaterTracker glasses={water} date={today} onChange={setWater} />
-        </div>
+        {/* Water — only show for today */}
+        {isViewingToday && (
+          <div className="animate-fadeInUp" style={{ animationDelay: '0.22s' }}>
+            <WaterTracker glasses={water} date={today} onChange={setWater} />
+          </div>
+        )}
 
         {/* API key nudge banner */}
         {settings && !settings.gemini_api_key && (
@@ -273,22 +347,34 @@ export default function Dashboard() {
         {/* Meals */}
         <section className="animate-fadeInUp" style={{ animationDelay: '0.28s' }}>
           <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="text-lg font-bold text-white">Comidas de hoy</h2>
-            <Link href="/log" className="glass-btn rounded-full px-3 py-2 text-xs font-bold text-white">Añadir</Link>
+            <h2 className="text-lg font-bold text-white">
+              {isViewingToday ? 'Comidas de hoy' : 'Comidas del día'}
+            </h2>
+            {isViewingToday && (
+              <Link href="/log" className="glass-btn rounded-full px-3 py-2 text-xs font-bold text-white">Añadir</Link>
+            )}
           </div>
 
-          {meals.length === 0 ? (
+          {dayLoading ? (
+            <div className="glass liquid-card p-8 flex justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+            </div>
+          ) : meals.length === 0 ? (
             <div className="glass liquid-card p-8 text-center">
-              <p className="text-xl font-bold text-white">Sin comidas hoy</p>
-              <p className="mx-auto mt-2 max-w-[260px] text-sm text-white/46">Haz una foto y deja que la IA estime calorías y macros.</p>
-              <Link href="/log" className="mt-5 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-bold text-white">
-                Registrar comida
-              </Link>
+              <p className="text-xl font-bold text-white">Sin comidas {isViewingToday ? 'hoy' : 'ese día'}</p>
+              <p className="mx-auto mt-2 max-w-[260px] text-sm text-white/46">
+                {isViewingToday ? 'Haz una foto y deja que la IA estime calorías y macros.' : 'No se registraron comidas este día.'}
+              </p>
+              {isViewingToday && (
+                <Link href="/log" className="mt-5 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-bold text-white">
+                  Registrar comida
+                </Link>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
               {meals.map((m, i) => (
-                <MealCard key={m.id} meal={m as never} onDelete={removeMeal} index={i} />
+                <MealCard key={m.id} meal={m as never} onDelete={isViewingToday ? removeMeal : undefined} index={i} />
               ))}
             </div>
           )}
