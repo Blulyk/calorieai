@@ -225,8 +225,107 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
     void lookupCode(manualCode)
   }
 
+  // When camera is blocked, show a compact no-camera layout
+  if (cameraState === 'blocked') {
+    return (
+      <div className="fixed inset-0 flex flex-col" style={{ background: '#0A0A0B', zIndex: 200 }}>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={e => e.target.files?.[0] && void scanImage(e.target.files[0])} />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-12 pb-4">
+          <button onClick={() => { stopScanner(); onClose() }}
+            className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white">Código de barras</h2>
+            <p className="text-xs text-white/40">Open Food Facts · 3 millones de productos</p>
+          </div>
+        </div>
+
+        {/* Main content — centred */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
+          {/* Icon */}
+          <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
+            style={{ background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.2)' }}>
+            <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6.75a3.75 3.75 0 1 0-7.5 0v3.75m-.75 11.25h9A2.25 2.25 0 0 0 18.75 19.5v-6.75A2.25 2.25 0 0 0 16.5 10.5h-9a2.25 2.25 0 0 0-2.25 2.25v6.75A2.25 2.25 0 0 0 7.5 21.75Z" />
+            </svg>
+          </div>
+
+          <div className="text-center">
+            <p className="text-white font-bold text-lg mb-1">Cámara no disponible</p>
+            <p className="text-white/45 text-sm leading-relaxed max-w-xs">
+              El navegador bloquea la cámara en HTTP. Accede desde móvil para escanear en vivo, o usa una foto o el código manual.
+            </p>
+          </div>
+
+          {/* Error from lookup */}
+          {error && (
+            <div className="w-full max-w-sm rounded-2xl px-4 py-3 text-sm text-red-300 text-center"
+              style={{ background: 'rgba(255,69,58,0.1)', border: '0.5px solid rgba(255,69,58,0.3)' }}>
+              {error}
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div className="flex items-center gap-3 text-sm text-white/60">
+              <div className="w-4 h-4 rounded-full border-2 border-[#34C759] border-t-transparent animate-spin" />
+              Buscando producto…
+            </div>
+          )}
+
+          {/* Primary action — photo */}
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={loading}
+            className="w-full max-w-sm py-4 rounded-2xl font-bold text-white text-base active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ background: 'linear-gradient(145deg, #1F8FFF, #0A6BE0)', boxShadow: '0 4px 20px rgba(10,132,255,0.4)' }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+            </svg>
+            Hacer foto / elegir imagen
+          </button>
+
+          {/* Manual entry */}
+          <form onSubmit={submitManual} className="w-full max-w-sm glass rounded-2xl p-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={manualCode}
+                onChange={e => setManualCode(e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Introducir código manualmente (ej: 8410076480569)"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30"
+              />
+              <button
+                type="submit"
+                disabled={loading || normalizeCode(manualCode).length < 6}
+                className="rounded-xl px-4 py-2.5 text-sm font-bold text-white disabled:opacity-35 flex-shrink-0"
+                style={{ background: '#0A84FF' }}
+              >
+                Buscar
+              </button>
+            </div>
+          </form>
+
+          <button onClick={retryCamera} disabled={loading}
+            className="text-xs text-white/30 active:text-white/60 transition-colors">
+            Reintentar cámara
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0A0A0B' }}>
+    <div className="fixed inset-0 flex flex-col" style={{ background: '#0A0A0B', zIndex: 200 }}>
       <input
         ref={fileRef}
         type="file"
@@ -260,63 +359,44 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
             autoPlay
           />
 
-          {cameraState === 'blocked' && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black px-6 text-center">
-              <div>
-                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl"
-                  style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.2)' }}>
-                  <svg className="h-10 w-10 text-red-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6.75a3.75 3.75 0 1 0-7.5 0v3.75m-.75 11.25h9A2.25 2.25 0 0 0 18.75 19.5v-6.75A2.25 2.25 0 0 0 16.5 10.5h-9a2.25 2.25 0 0 0-2.25 2.25v6.75A2.25 2.25 0 0 0 7.5 21.75Z" />
-                  </svg>
-                </div>
-                <p className="text-lg font-bold text-white">Cámara no disponible</p>
-                <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/50">
-                  En Umbrel por HTTP el navegador puede bloquear la cámara. Usa una foto del código o introdúcelo manualmente.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {cameraState !== 'blocked' && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative" style={{ width: 280, height: 170 }}>
-                <div
-                  className="absolute inset-0 rounded-2xl"
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative" style={{ width: 280, height: 170 }}>
+              <div
+                className="absolute inset-0 rounded-2xl"
+                style={{
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.62)',
+                  border: loading ? '2px solid rgba(52,199,89,0.8)' : '2px solid rgba(10,132,255,0.75)',
+                  transition: 'border-color 0.3s',
+                }}
+              />
+              {([
+                'top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-xl',
+                'top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-xl',
+                'bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-xl',
+                'bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-xl',
+              ] as const).map((cls, i) => (
+                <div key={i} className={`absolute h-7 w-7 ${cls}`}
+                  style={{ borderColor: loading ? '#34C759' : '#0A84FF', transition: 'border-color 0.3s' }} />
+              ))}
+              {cameraState === 'scanning' && !loading && !error && (
+                <div className="absolute left-3 right-3 h-0.5 rounded-full"
                   style={{
-                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.62)',
-                    border: loading ? '2px solid rgba(52,199,89,0.8)' : '2px solid rgba(10,132,255,0.75)',
-                    transition: 'border-color 0.3s',
+                    top: '50%',
+                    background: 'linear-gradient(90deg, transparent, #0A84FF 40%, #0A84FF 60%, transparent)',
+                    animation: 'scanline 2s ease-in-out infinite',
                   }}
                 />
-                {([
-                  'top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-xl',
-                  'top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-xl',
-                  'bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-xl',
-                  'bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-xl',
-                ] as const).map((cls, i) => (
-                  <div key={i} className={`absolute h-7 w-7 ${cls}`}
-                    style={{ borderColor: loading ? '#34C759' : '#0A84FF', transition: 'border-color 0.3s' }} />
-                ))}
-                {cameraState === 'scanning' && !loading && !error && (
-                  <div className="absolute left-3 right-3 h-0.5 rounded-full"
-                    style={{
-                      top: '50%',
-                      background: 'linear-gradient(90deg, transparent, #0A84FF 40%, #0A84FF 60%, transparent)',
-                      animation: 'scanline 2s ease-in-out infinite',
-                    }}
-                  />
-                )}
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-[#34C759]" />
-                  </div>
-                )}
-              </div>
+              )}
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-[#34C759]" />
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="space-y-3 px-5 py-5 pb-safe">
+        <div className="space-y-3 px-5 py-5">
           {error && (
             <div className="rounded-2xl px-4 py-3 text-sm text-red-300"
               style={{ background: 'rgba(255,69,58,0.1)', border: '0.5px solid rgba(255,69,58,0.3)' }}>
@@ -334,19 +414,13 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={retryCamera}
-              disabled={loading}
-              className="glass-btn rounded-2xl py-3 text-sm font-semibold text-white disabled:opacity-40"
-            >
+            <button onClick={retryCamera} disabled={loading}
+              className="glass-btn rounded-2xl py-3 text-sm font-semibold text-white disabled:opacity-40">
               Reintentar cámara
             </button>
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={loading}
+            <button onClick={() => fileRef.current?.click()} disabled={loading}
               className="rounded-2xl py-3 text-sm font-semibold text-white disabled:opacity-40"
-              style={{ background: 'linear-gradient(145deg, #1F8FFF, #0A6BE0)', boxShadow: '0 4px 16px rgba(10,132,255,0.35)' }}
-            >
+              style={{ background: 'linear-gradient(145deg, #1F8FFF, #0A6BE0)', boxShadow: '0 4px 16px rgba(10,132,255,0.35)' }}>
               Foto del código
             </button>
           </div>
@@ -358,15 +432,12 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
                 onChange={e => setManualCode(e.target.value)}
                 inputMode="numeric"
                 autoComplete="off"
-                placeholder="Escribir código manualmente"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-white/32"
+                placeholder="Introducir código manualmente"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-white/30"
               />
-              <button
-                type="submit"
-                disabled={loading || normalizeCode(manualCode).length < 6}
+              <button type="submit" disabled={loading || normalizeCode(manualCode).length < 6}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-35"
-                style={{ background: '#0A84FF' }}
-              >
+                style={{ background: '#0A84FF' }}>
                 Buscar
               </button>
             </div>
