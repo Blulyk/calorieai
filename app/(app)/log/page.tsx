@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import BarcodeScanner from '@/components/BarcodeScanner'
+import dynamic from 'next/dynamic'
 import { searchRestaurants, type RestaurantItem } from '@/lib/restaurants'
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
@@ -38,6 +38,15 @@ const MODEL_LABELS: Record<string, string> = {
   'gemini-2.5-flash': 'Gemini 2.5 Flash',
   'gemini-2.0-flash': 'Gemini 2.0 Flash',
 }
+
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), {
+  ssr: false,
+  loading: () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A0A0B]">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-[#0A84FF]" />
+    </div>
+  ),
+})
 
 function guessCurrentMeal(): MealType {
   const h = new Date().getHours()
