@@ -11,7 +11,12 @@ export async function GET() {
 export async function PUT(req: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const body = await req.json()
-  updateSettings(session.userId, body)
-  return NextResponse.json(getSettings(session.userId))
+  try {
+    const body = await req.json()
+    updateSettings(session.userId, body)
+    return NextResponse.json(getSettings(session.userId))
+  } catch (error) {
+    console.error('Failed to update profile settings', error)
+    return NextResponse.json({ error: 'No se pudieron guardar los cambios del perfil' }, { status: 500 })
+  }
 }

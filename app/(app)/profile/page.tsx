@@ -95,14 +95,24 @@ export default function ProfilePage() {
 
   async function save() {
     setSaving(true); setSaved(false); setError('')
-    const res = await fetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    })
-    setSaving(false)
-    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000) }
-    else setError('Error al guardar')
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      })
+      const data = await res.json().catch(() => null)
+      setSaving(false)
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        setError(data?.error || 'Error al guardar')
+      }
+    } catch {
+      setSaving(false)
+      setError('No se pudo conectar con la app')
+    }
   }
 
   async function calculateGoal() {

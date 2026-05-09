@@ -171,9 +171,15 @@ export function updateSettings(userId: string, data: Partial<UserSettings>) {
   const fields = Object.keys(data).filter(k => allowed.includes(k))
   if (!fields.length) return
   const set = fields.map(f => `${f} = ?`).join(', ')
-  const vals = fields.map(f => (data as Record<string, unknown>)[f])
+  const vals = fields.map(f => normalizeSqliteValue((data as Record<string, unknown>)[f]))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db.prepare(`UPDATE user_settings SET ${set}, updated_at = unixepoch() WHERE user_id = ?`).run(...(vals as any[]), userId)
+}
+
+function normalizeSqliteValue(value: unknown) {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  if (value === undefined) return null
+  return value
 }
 
 // ─── Meal queries ──────────────────────────────────────────────────────────────
