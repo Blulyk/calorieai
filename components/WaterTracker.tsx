@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface Props {
   glasses: number
@@ -16,6 +16,9 @@ const MAX_GLASSES = 12
 export default function WaterTracker({ glasses, date, onChange }: Props) {
   const [current, setCurrent] = useState(glasses)
   const [saving, setSaving] = useState(false)
+
+  // Sync internal state when the prop updates (e.g. after API fetch on mount)
+  useEffect(() => { setCurrent(glasses) }, [glasses])
 
   async function update(n: number) {
     const next = Math.max(0, Math.min(MAX_GLASSES, n))
