@@ -123,53 +123,135 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni texto adicional:
 {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "summary": "frase breve en español describiendo el perfil nutricional"}`
 }
 
-// ── Gemini call with model cascade ───────────────────────────────────────────
+// ── Per-attempt diagnostic record ────────────────────────────────────────────
+interface GeminiAttempt {
+  model: string
+  ok: boolean
+  status: number | 'network_error' | 'parse_error' | 'bad_json' | 'sanity_failed'
+  detail: string  // human-readable Spanish explanation
+}
+
+// ── Gemini call with model cascade — returns result + full attempt log ────────
 async function callGemini(apiKey: string, prompt: string): Promise<{
-  calories: number; protein: number; carbs: number; fat: number; summary: string
-} | null> {
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+  result: { calories: number; protein: number; carbs: number; fat: number; summary: string } | null
+  attempts: GeminiAttempt[]
+}> {
+  const models = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']
+  const attempts: GeminiAttempt[] = []
 
   for (const model of models) {
+    // ── Network call ────────────────────────────────────────────────────────
+    let res: Response
     try {
-      const res = await fetch(
+      res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.2,   // low temperature = consistent, precise output
-              maxOutputTokens: 256,
-            },
+            generationConfig: { temperature: 0.2, maxOutputTokens: 256 },
           }),
+          signal: AbortSignal.timeout(18000), // 18 s per model
         }
       )
-      if (!res.ok) continue
-
-      const data = await res.json()
-      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-      // Strip any accidental markdown code fences
-      const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const match = cleaned.match(/\{[\s\S]*\}/)
-      if (!match) continue
-
-      const parsed = JSON.parse(match[0])
-      const calories = Math.round(Number(parsed.calories))
-      const protein  = Math.round(Number(parsed.protein))
-      const carbs    = Math.round(Number(parsed.carbs))
-      const fat      = Math.round(Number(parsed.fat))
-
-      // Sanity-check: reject wildly impossible values
-      if (!calories || calories < 50 || calories > 15000) continue
-      if (protein < 0 || carbs < 0 || fat < 0) continue
-
-      return { calories, protein, carbs, fat, summary: String(parsed.summary ?? '') }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const isTimeout = msg.toLowerCase().includes('timeout') || msg.toLowerCase().includes('abort')
+      attempts.push({
+        model, ok: false, status: 'network_error',
+        detail: isTimeout
+          ? `Tiempo de espera agotado (>18 s) — sin respuesta de Google`
+          : `Error de red: ${msg}`,
+      })
       continue
     }
+
+    // ── HTTP error ──────────────────────────────────────────────────────────
+    if (!res.ok) {
+      let googleMsg = ''
+      try {
+        const errBody = await res.json()
+        googleMsg = errBody?.error?.message ?? ''
+      } catch { /* ignore parse error on error body */ }
+
+      const friendlyStatus: Record<number, string> = {
+        400: 'Petición inválida (API key incorrecta o prompt malformado)',
+        401: 'API key no autorizada',
+        403: 'Acceso denegado (API key sin permisos o proyecto desactivado)',
+        429: 'Cuota de peticiones agotada — espera unos minutos',
+        500: 'Error interno del servidor de Google',
+        503: 'Servicio de Google temporalmente no disponible',
+      }
+      const friendly = friendlyStatus[res.status] ?? `HTTP ${res.status}`
+      attempts.push({
+        model, ok: false, status: res.status,
+        detail: googleMsg ? `${friendly}: "${googleMsg}"` : friendly,
+      })
+      // 429 / quota errors affect all models — no point trying more
+      if (res.status === 429 || res.status === 403 || res.status === 401) break
+      continue
+    }
+
+    // ── Parse response ──────────────────────────────────────────────────────
+    let data: Record<string, unknown>
+    try { data = await res.json() } catch {
+      attempts.push({ model, ok: false, status: 'parse_error', detail: 'La respuesta de Google no era JSON válido' })
+      continue
+    }
+
+    const raw: string = (data?.candidates as Array<{content:{parts:Array<{text:string}>}}>)?.[0]?.content?.parts?.[0]?.text ?? ''
+    if (!raw) {
+      // Could be a safety block or empty candidates
+      const blockReason = (data?.promptFeedback as {blockReason?: string})?.blockReason
+      attempts.push({
+        model, ok: false, status: 'parse_error',
+        detail: blockReason
+          ? `El prompt fue bloqueado por Google: ${blockReason}`
+          : 'Gemini devolvió una respuesta vacía (sin candidatos)',
+      })
+      continue
+    }
+
+    // ── Extract JSON from text ──────────────────────────────────────────────
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const match = cleaned.match(/\{[\s\S]*\}/)
+    if (!match) {
+      attempts.push({
+        model, ok: false, status: 'bad_json',
+        detail: `Gemini respondió texto pero sin JSON extraíble: "${cleaned.slice(0, 80)}"`,
+      })
+      continue
+    }
+
+    let parsed: Record<string, unknown>
+    try { parsed = JSON.parse(match[0]) } catch {
+      attempts.push({ model, ok: false, status: 'bad_json', detail: 'El JSON devuelto por Gemini no era parseable' })
+      continue
+    }
+
+    const calories = Math.round(Number(parsed.calories))
+    const protein  = Math.round(Number(parsed.protein))
+    const carbs    = Math.round(Number(parsed.carbs))
+    const fat      = Math.round(Number(parsed.fat))
+
+    if (!calories || calories < 50 || calories > 15000 || protein < 0 || carbs < 0 || fat < 0) {
+      attempts.push({
+        model, ok: false, status: 'sanity_failed',
+        detail: `Valores fuera de rango: ${calories} kcal / ${protein}g P / ${carbs}g C / ${fat}g F — descartado`,
+      })
+      continue
+    }
+
+    // ── Success ─────────────────────────────────────────────────────────────
+    attempts.push({ model, ok: true, status: res.status, detail: 'Análisis completado correctamente' })
+    return {
+      result: { calories, protein, carbs, fat, summary: String(parsed.summary ?? '') },
+      attempts,
+    }
   }
-  return null
+
+  return { result: null, attempts }
 }
 
 // ── Local fallback calculation ────────────────────────────────────────────────
@@ -232,14 +314,15 @@ export async function POST(req: NextRequest) {
 
     if (apiKey && !forceLocal) {
       const prompt = buildGeminiPrompt(breakdown, total_pieces, duration_minutes)
-      const geminiResult = await callGemini(apiKey, prompt)
+      const { result: geminiResult, attempts } = await callGemini(apiKey, prompt)
 
       if (!geminiResult) {
-        // Gemini failed — return local estimate WITHOUT saving so the client can choose
+        // Gemini failed — return diagnostic info + local estimate WITHOUT saving
         const local = calcLocal(breakdown, total_pieces)
         return NextResponse.json({
           gemini_failed: true,
           local_estimate: local,
+          attempts,            // full attempt log sent to client
         }, { status: 503 })
       }
 
@@ -249,7 +332,7 @@ export async function POST(req: NextRequest) {
       nutrition = calcLocal(breakdown, total_pieces)
     }
 
-    void geminiUsed // used for future logging if needed
+    void geminiUsed
 
     const { calories, protein, carbs, fat, summary } = nutrition
 

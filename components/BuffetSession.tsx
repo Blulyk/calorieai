@@ -26,8 +26,10 @@ export default function BuffetSession() {
   const [elapsed, setElapsed] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState('')
+  interface GeminiAttempt { model: string; ok: boolean; status: number | string; detail: string }
   const [geminiFailState, setGeminiFailState] = useState<{
     local_estimate: { calories: number; protein: number; carbs: number; fat: number; summary: string }
+    attempts: GeminiAttempt[]
     retrying: boolean
     savingLocal: boolean
   } | null>(null)
@@ -100,8 +102,12 @@ export default function BuffetSession() {
       const data = await res.json()
 
       if (res.status === 503 && data.gemini_failed) {
-        // Gemini unavailable — show choice UI
-        setGeminiFailState({ local_estimate: data.local_estimate, retrying: false, savingLocal: false })
+        setGeminiFailState({
+          local_estimate: data.local_estimate,
+          attempts: data.attempts ?? [],
+          retrying: false,
+          savingLocal: false,
+        })
         setFinishing(false)
         return
       }
@@ -124,8 +130,12 @@ export default function BuffetSession() {
       const data = await res.json()
 
       if (res.status === 503 && data.gemini_failed) {
-        // Still failing
-        setGeminiFailState(s => s ? { ...s, retrying: false } : s)
+        // Still failing — update attempt log with latest results
+        setGeminiFailState(s => s ? {
+          ...s,
+          attempts: data.attempts ?? s.attempts,
+          retrying: false,
+        } : s)
         return
       }
       if (!res.ok) {
@@ -171,113 +181,154 @@ export default function BuffetSession() {
 
   // ── Gemini failed: offer retry or local estimate ───────────────────────────
   if (geminiFailState) {
-    const { local_estimate, retrying, savingLocal } = geminiFailState
+    const { local_estimate, attempts, retrying, savingLocal } = geminiFailState
     const busy = retrying || savingLocal
+
+    // Determine the most informative top-level error to show
+    const lastAttempt = attempts[attempts.length - 1]
+    const topError = lastAttempt?.detail ?? 'No se pudo conectar con Gemini'
+
     return (
       <div style={{
         position: 'fixed', inset: 0, zIndex: 300,
         background: 'linear-gradient(180deg, #080004 0%, #0d0008 60%, #100004 100%)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '32px 24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        padding: '52px 20px 36px',
+        overflowY: 'auto',
       }}>
-        {/* Icon */}
-        <div style={{
-          width: 72, height: 72, borderRadius: 22, marginBottom: 20,
-          background: 'rgba(255,159,10,0.1)',
-          border: '1px solid rgba(255,159,10,0.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 34,
-        }}>⚠️</div>
+        <div style={{ width: '100%', maxWidth: 360 }}>
 
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 8, textAlign: 'center' }}>
-          Gemini no está disponible
-        </h2>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center', maxWidth: 280, lineHeight: 1.55, marginBottom: 28 }}>
-          No se pudo conectar con la IA para analizar tu sesión. Puedes volver a intentarlo o guardar con la estimación local.
-        </p>
-
-        {/* Local estimate preview */}
-        <div style={{
-          width: '100%', maxWidth: 320,
-          background: 'rgba(255,255,255,0.04)',
-          border: '0.5px solid rgba(255,255,255,0.08)',
-          borderRadius: 18, padding: '16px 20px',
-          marginBottom: 24,
-        }}>
-          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: 12, textAlign: 'center' }}>
-            Estimación local · {session?.totalPieces} piezas
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
-            {[
-              { l: 'Calorías', v: local_estimate.calories, u: 'kcal', c: '#FF9F0A' },
-              { l: 'Proteína', v: local_estimate.protein,  u: 'g',    c: '#32D74B' },
-              { l: 'Carbos',   v: local_estimate.carbs,    u: 'g',    c: '#5AC8FA' },
-              { l: 'Grasa',    v: local_estimate.fat,      u: 'g',    c: '#FFD60A' },
-            ].map(m => (
-              <div key={m.l} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 19, fontWeight: 800, color: m.c, fontVariantNumeric: 'tabular-nums' }}>
-                  {m.v}<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 2 }}>{m.u}</span>
-                </div>
-                <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
-                  {m.l}
-                </div>
-              </div>
-            ))}
+          {/* Icon + title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'rgba(255,159,10,0.1)', border: '1px solid rgba(255,159,10,0.22)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+            }}>⚠️</div>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>
+                Gemini no disponible
+              </h2>
+              <p style={{ fontSize: 12, color: 'rgba(255,159,10,0.8)', margin: '3px 0 0', lineHeight: 1.4 }}>
+                {topError}
+              </p>
+            </div>
           </div>
+
+          {/* Attempt log */}
+          {attempts.length > 0 && (
+            <div style={{
+              background: 'rgba(0,0,0,0.35)',
+              border: '0.5px solid rgba(255,255,255,0.07)',
+              borderRadius: 14, padding: '12px 14px',
+              marginBottom: 18,
+            }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 10 }}>
+                Modelos probados
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {attempts.map((a, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    {/* Status dot */}
+                    <div style={{
+                      width: 7, height: 7, borderRadius: '50%', marginTop: 4, flexShrink: 0,
+                      background: a.ok ? '#32D74B' : '#FF453A',
+                      boxShadow: a.ok ? '0 0 6px #32D74B88' : '0 0 6px #FF453A88',
+                    }} />
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: a.ok ? '#32D74B' : 'rgba(255,255,255,0.75)', margin: 0, fontFamily: 'monospace' }}>
+                        {a.model}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '2px 0 0', lineHeight: 1.45, wordBreak: 'break-word' }}>
+                        {a.detail}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Local estimate preview */}
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '0.5px solid rgba(255,255,255,0.08)',
+            borderRadius: 16, padding: '14px 18px',
+            marginBottom: 18,
+          }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 10, textAlign: 'center' }}>
+              Estimación local · {session?.totalPieces} piezas
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
+              {[
+                { l: 'Calorías', v: local_estimate.calories, u: 'kcal', c: '#FF9F0A' },
+                { l: 'Proteína', v: local_estimate.protein,  u: 'g',    c: '#32D74B' },
+                { l: 'Carbos',   v: local_estimate.carbs,    u: 'g',    c: '#5AC8FA' },
+                { l: 'Grasa',    v: local_estimate.fat,      u: 'g',    c: '#FFD60A' },
+              ].map(m => (
+                <div key={m.l} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: m.c, fontVariantNumeric: 'tabular-nums' }}>
+                    {m.v}<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 2 }}>{m.u}</span>
+                  </div>
+                  <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                    {m.l}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Retry button */}
+          <button
+            onClick={handleRetryGemini}
+            disabled={busy}
+            style={{
+              width: '100%', height: 52, borderRadius: 16, marginBottom: 10,
+              background: busy ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #dc143c 0%, #7a0015 100%)',
+              border: busy ? '0.5px solid rgba(255,255,255,0.07)' : '0.5px solid rgba(220,20,60,0.5)',
+              color: busy ? 'rgba(255,255,255,0.25)' : '#fff',
+              fontSize: 15, fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
+              boxShadow: !busy ? '0 4px 20px rgba(220,20,60,0.3)' : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'all 0.25s', touchAction: 'manipulation',
+            }}
+          >
+            {retrying ? (
+              <>
+                <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', animation: 'spinLoader 0.7s linear infinite', display: 'inline-block' }} />
+                Reintentando con Gemini…
+              </>
+            ) : '🔄 Reintentar con Gemini'}
+          </button>
+
+          {/* Use local estimate button */}
+          <button
+            onClick={handleUseLocal}
+            disabled={busy}
+            style={{
+              width: '100%', height: 52, borderRadius: 16,
+              background: 'rgba(255,255,255,0.05)',
+              border: '0.5px solid rgba(255,255,255,0.1)',
+              color: busy ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.65)',
+              fontSize: 15, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'all 0.25s', touchAction: 'manipulation',
+            }}
+          >
+            {savingLocal ? (
+              <>
+                <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'rgba(255,255,255,0.6)', animation: 'spinLoader 0.7s linear infinite', display: 'inline-block' }} />
+                Guardando…
+              </>
+            ) : '📊 Usar estimación local'}
+          </button>
+
+          {error && (
+            <p style={{ marginTop: 14, fontSize: 12, color: '#ff8080', textAlign: 'center' }}>{error}</p>
+          )}
         </div>
 
-        {/* Retry button */}
-        <button
-          onClick={handleRetryGemini}
-          disabled={busy}
-          style={{
-            width: '100%', maxWidth: 320, height: 52, borderRadius: 16, marginBottom: 10,
-            background: busy ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #dc143c 0%, #7a0015 100%)',
-            border: busy ? '0.5px solid rgba(255,255,255,0.07)' : '0.5px solid rgba(220,20,60,0.5)',
-            color: busy ? 'rgba(255,255,255,0.25)' : '#fff',
-            fontSize: 15, fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
-            boxShadow: !busy ? '0 4px 20px rgba(220,20,60,0.3)' : 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'all 0.25s',
-          }}
-        >
-          {retrying ? (
-            <>
-              <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', animation: 'spinLoader 0.7s linear infinite', display: 'inline-block' }} />
-              Reintentando…
-            </>
-          ) : '🔄 Reintentar con Gemini'}
-        </button>
-
-        {/* Use local estimate button */}
-        <button
-          onClick={handleUseLocal}
-          disabled={busy}
-          style={{
-            width: '100%', maxWidth: 320, height: 52, borderRadius: 16,
-            background: 'rgba(255,255,255,0.05)',
-            border: '0.5px solid rgba(255,255,255,0.1)',
-            color: busy ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.65)',
-            fontSize: 15, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'all 0.25s',
-          }}
-        >
-          {savingLocal ? (
-            <>
-              <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'rgba(255,255,255,0.6)', animation: 'spinLoader 0.7s linear infinite', display: 'inline-block' }} />
-              Guardando…
-            </>
-          ) : '📊 Usar estimación local'}
-        </button>
-
-        {error && (
-          <p style={{ marginTop: 14, fontSize: 12, color: '#ff8080', textAlign: 'center' }}>{error}</p>
-        )}
-
-        <style>{`
-          @keyframes spinLoader { to { transform: rotate(360deg); } }
-        `}</style>
+        <style>{`@keyframes spinLoader { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
