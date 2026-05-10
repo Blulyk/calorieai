@@ -3,23 +3,203 @@ import { randomUUID } from 'crypto'
 import { getSession } from '@/lib/auth'
 import { getSettings, createMeal, getDb } from '@/lib/db'
 
-// ── Evidence-based per-piece nutritional values for Japanese buffet ─────────
-// Sources: USDA FoodData, Japanese Nutrition Database, restaurant lab analyses
-// All values per one standard buffet piece (not restaurant omakase)
-const PIECE_NUTRITION: Record<string, { kcal: number; protein: number; carbs: number; fat: number }> = {
-  nigiri:  { kcal: 52,  protein: 4.5,  carbs: 6.5,  fat: 0.8 },  // ~32g: rice + fish slice
-  maki:    { kcal: 30,  protein: 1.4,  carbs: 5.5,  fat: 0.5 },  // ~22g: hosomaki piece
-  tempura: { kcal: 75,  protein: 3.5,  carbs: 7.5,  fat: 3.5 },  // ~35g: battered prawn/veg
-  gyoza:   { kcal: 50,  protein: 2.8,  carbs: 5.0,  fat: 2.0 },  // ~25g: pan-fried dumpling
-  postre:  { kcal: 90,  protein: 1.0,  carbs: 20.0, fat: 0.8 },  // ~40g: mochi / dorayaki
-  otros:   { kcal: 42,  protein: 2.2,  carbs: 5.2,  fat: 1.2 },  // avg of various items
+// ── Local fallback values — only used if Gemini is unavailable ──────────────
+// Calibrated to match Gemini's typical output for Japanese buffet portions
+const FALLBACK: Record<string, { kcal: number; protein: number; carbs: number; fat: number }> = {
+  nigiri:  { kcal: 70,  protein: 5.5,  carbs: 8.5,  fat: 1.2 },
+  maki:    { kcal: 45,  protein: 1.8,  carbs: 7.5,  fat: 1.2 },
+  tempura: { kcal: 85,  protein: 3.8,  carbs: 8.5,  fat: 4.0 },
+  gyoza:   { kcal: 55,  protein: 3.2,  carbs: 5.5,  fat: 2.2 },
+  postre:  { kcal: 95,  protein: 1.2,  carbs: 21.0, fat: 1.0 },
+  otros:   { kcal: 60,  protein: 2.8,  carbs: 7.0,  fat: 1.8 },
 }
-// Weighted average (used for uncategorised pieces)
-const AVG_PIECE = { kcal: 52, protein: 3.0, carbs: 6.5, fat: 1.5 }
+const FALLBACK_AVG = { kcal: 66, protein: 3.5, carbs: 8.0, fat: 2.0 }
 
 interface Breakdown {
   nigiri: number; maki: number; tempura: number
   gyoza: number; postre: number; otros: number
+}
+
+// ── Build the rich contextual prompt for Gemini ───────────────────────────────
+function buildGeminiPrompt(breakdown: Breakdown, total_pieces: number, duration_minutes: number): string {
+  const categorisedTotal = Object.values(breakdown).reduce((s, v) => s + v, 0)
+  const uncategorised = Math.max(0, total_pieces - categorisedTotal)
+
+  const sections: string[] = []
+
+  if (breakdown.nigiri > 0) {
+    sections.push(
+      `• NIGIRI SUSHI — ${breakdown.nigiri} piezas\n` +
+      `  Cada pieza: bola de arroz prensada a mano (~25-30 g de arroz de sushi adobado con vinagre de arroz, azúcar y sal) ` +
+      `coronada con una loncha de pescado o marisco crudo (~12-18 g). ` +
+      `Toppings más habituales en buffets: salmón, atún, gamba cocida, pez limón, erizo, tortilla dulce (tamago). ` +
+      `El arroz lleva el aliño incluido; el pescado crudo aporta proteína y algo de grasa omega-3.`
+    )
+  }
+
+  if (breakdown.maki > 0) {
+    sections.push(
+      `• MAKI ROLLS — ${breakdown.maki} piezas\n` +
+      `  Cada pieza: sección transversal (~25-40 g) de un rollo de sushi. ` +
+      `En buffets predominan los California rolls (arroz, surimi o cangrejo real, pepino, aguacate, ` +
+      `sésamo tostado y frecuentemente mayonesa japonesa en exterior o interior), ` +
+      `rolls de salmón, rolls de atún y piccante rolls con sriracha. ` +
+      `Los California rolls con aguacate y mayonesa son notablemente más calóricos que los hosomaki simples. ` +
+      `Considera una mezcla realista de tipos.`
+    )
+  }
+
+  if (breakdown.tempura > 0) {
+    sections.push(
+      `• TEMPURA — ${breakdown.tempura} piezas\n` +
+      `  Cada pieza: alimento rebozado con masa de tempura y frito en aceite vegetal a 170-180 °C. ` +
+      `En buffets: principalmente gambas (ebi tempura, ~35-50 g con rebozado) y verduras ` +
+      `(boniato, judía verde, brócoli, pimiento). ` +
+      `IMPORTANTE: la masa de tempura absorbe entre un 15-25 % de su peso en aceite durante la fritura, ` +
+      `lo que eleva significativamente las calorías respecto al ingrediente crudo. ` +
+      `Una gamba tempura de tamaño medio contiene ~75-110 kcal dependiendo del grosor del rebozado.`
+    )
+  }
+
+  if (breakdown.gyoza > 0) {
+    sections.push(
+      `• GYOZA — ${breakdown.gyoza} piezas\n` +
+      `  Cada pieza: empanadilla japonesa de ~20-30 g. ` +
+      `Relleno típico: cerdo y col (nira en algunas variantes). ` +
+      `Cocción a la plancha con aceite (potsticker/yaki-gyoza): la base queda crujiente por el aceite, ` +
+      `el vapor cocina la parte superior. ` +
+      `El método de cocción añade grasa; una gyoza de tamaño estándar ronda las 45-60 kcal.`
+    )
+  }
+
+  if (breakdown.postre > 0) {
+    sections.push(
+      `• POSTRES JAPONESES — ${breakdown.postre} piezas\n` +
+      `  Cada pieza: postre típico de buffet japonés. Variedades más comunes: ` +
+      `mochi (pastel de arroz glutinoso relleno de pasta de judía roja anko, helado o sésamo, ~40-55 g), ` +
+      `dorayaki (dos tortitas dulces con relleno de anko, ~50-60 g), ` +
+      `pudding de huevo al estilo japonés, o pastel de queso japonés. ` +
+      `Alto contenido en hidratos de carbono simples y azúcar; grasa moderada.`
+    )
+  }
+
+  if (breakdown.otros > 0) {
+    sections.push(
+      `• OTRAS PIEZAS — ${breakdown.otros} piezas\n` +
+      `  Piezas variadas no clasificadas en las categorías anteriores. ` +
+      `Pueden incluir: sashimi (solo pescado sin arroz, ~25-30 g/pieza, bajo en carbos y calorías), ` +
+      `rollitos de primavera fritos (~50 g, ricos en grasa), takoyaki (bolitas de pulpo fritas en molde, ~25-30 g), ` +
+      `edamame (contadas como piezas de vaina), ensalada de algas con sésamo, ` +
+      `croquetas de cangrejo, o cualquier otro plato del buffet. ` +
+      `Usa una estimación media representativa de este tipo de variedad.`
+    )
+  }
+
+  if (uncategorised > 0) {
+    sections.push(
+      `• SIN CATEGORIZAR — ${uncategorised} piezas\n` +
+      `  Piezas contadas en el total pero no asignadas a ninguna categoría. ` +
+      `Usa la media ponderada de los tipos de sushi más habituales en un buffet japonés estándar.`
+    )
+  }
+
+  return `Eres un dietista-nutricionista con doctorado en bromatología y 15 años de experiencia en análisis nutricional de cocina japonesa. Tu tarea es estimar con la máxima precisión posible el contenido nutricional total de una sesión de buffet japonés.
+
+El usuario ha comido lo siguiente durante ${duration_minutes} minuto${duration_minutes !== 1 ? 's' : ''}:
+
+${sections.join('\n\n')}
+
+TOTAL: ${total_pieces} pieza${total_pieces !== 1 ? 's' : ''}
+
+CONSIDERACIONES ADICIONALES OBLIGATORIAS:
+- Estás analizando un buffet de restaurante japonés de gama media (NO alta cocina): las porciones son generosas y estandarizadas industrialmente
+- El arroz de sushi pesa más de lo que parece; un nigiri completo con su topping suele rondar los 40-50 g
+- Es muy probable que el usuario haya consumido condimentos: salsa de soja (prácticamente sin calorías), wasabi (~5 kcal), jengibre encurtido (~10 kcal total) — estos son negligibles
+- Si hay California rolls o maki con mayonesa, NO los subestimes: la mayo japonesa es densa en calorías
+- Tempura: sé generoso con las calorías por el aceite absorbido, es el error más común al subestimarla
+- Considera que un buffet japonés de ${total_pieces} piezas con esta composición es una comida principal completa
+
+Responde ÚNICAMENTE con JSON válido sin markdown ni texto adicional:
+{"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "summary": "frase breve en español describiendo el perfil nutricional"}`
+}
+
+// ── Gemini call with model cascade ───────────────────────────────────────────
+async function callGemini(apiKey: string, prompt: string): Promise<{
+  calories: number; protein: number; carbs: number; fat: number; summary: string
+} | null> {
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,   // low temperature = consistent, precise output
+              maxOutputTokens: 256,
+            },
+          }),
+        }
+      )
+      if (!res.ok) continue
+
+      const data = await res.json()
+      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      // Strip any accidental markdown code fences
+      const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      const match = cleaned.match(/\{[\s\S]*\}/)
+      if (!match) continue
+
+      const parsed = JSON.parse(match[0])
+      const calories = Math.round(Number(parsed.calories))
+      const protein  = Math.round(Number(parsed.protein))
+      const carbs    = Math.round(Number(parsed.carbs))
+      const fat      = Math.round(Number(parsed.fat))
+
+      // Sanity-check: reject wildly impossible values
+      if (!calories || calories < 50 || calories > 15000) continue
+      if (protein < 0 || carbs < 0 || fat < 0) continue
+
+      return { calories, protein, carbs, fat, summary: String(parsed.summary ?? '') }
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+// ── Local fallback calculation ────────────────────────────────────────────────
+function calcLocal(breakdown: Breakdown, total_pieces: number) {
+  const categorisedTotal = Object.values(breakdown).reduce((s, v) => s + v, 0)
+  const uncategorised    = Math.max(0, total_pieces - categorisedTotal)
+
+  let calories = 0, protein = 0, carbs = 0, fat = 0
+
+  for (const [cat, count] of Object.entries(breakdown) as [keyof typeof FALLBACK, number][]) {
+    if (count <= 0) continue
+    const n = FALLBACK[cat] ?? FALLBACK_AVG
+    calories += n.kcal    * count
+    protein  += n.protein * count
+    carbs    += n.carbs   * count
+    fat      += n.fat     * count
+  }
+
+  calories += FALLBACK_AVG.kcal    * uncategorised
+  protein  += FALLBACK_AVG.protein * uncategorised
+  carbs    += FALLBACK_AVG.carbs   * uncategorised
+  fat      += FALLBACK_AVG.fat     * uncategorised
+
+  return {
+    calories: Math.round(calories),
+    protein:  Math.round(protein),
+    carbs:    Math.round(carbs),
+    fat:      Math.round(fat),
+    summary:  'Estimación local (Gemini no disponible).',
+  }
 }
 
 // ── POST: finish a buffet session ─────────────────────────────────────────────
@@ -39,66 +219,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Debes registrar al menos una pieza' }, { status: 400 })
     }
 
-    // ── Calculate nutrition locally using research-backed values ─────────────
-    const categorisedTotal = Object.values(breakdown).reduce((s, v) => s + v, 0)
-    const uncategorised    = Math.max(0, total_pieces - categorisedTotal)
-
-    let calories = 0, protein = 0, carbs = 0, fat = 0
-
-    for (const [cat, count] of Object.entries(breakdown)) {
-      if (count <= 0) continue
-      const n = PIECE_NUTRITION[cat] ?? AVG_PIECE
-      calories += n.kcal    * count
-      protein  += n.protein * count
-      carbs    += n.carbs   * count
-      fat      += n.fat     * count
-    }
-
-    // Uncategorised pieces: use weighted average
-    calories += AVG_PIECE.kcal    * uncategorised
-    protein  += AVG_PIECE.protein * uncategorised
-    carbs    += AVG_PIECE.carbs   * uncategorised
-    fat      += AVG_PIECE.fat     * uncategorised
-
-    calories = Math.round(calories)
-    protein  = Math.round(protein)
-    carbs    = Math.round(carbs)
-    fat      = Math.round(fat)
-
-    // ── Optional Gemini summary (just text, doesn't affect numbers) ──────────
-    let summary = ''
+    // ── Build prompt and call Gemini ─────────────────────────────────────────
     const settings = getSettings(session.userId)
     const apiKey   = settings?.gemini_api_key
+
+    let nutrition: { calories: number; protein: number; carbs: number; fat: number; summary: string }
+
     if (apiKey) {
-      try {
-        const hasBreakdown = categorisedTotal > 0
-        const breakdownText = hasBreakdown
-          ? Object.entries(breakdown)
-              .filter(([, v]) => v > 0)
-              .map(([k, v]) => `${capitalize(k)}: ${v}`)
-              .join(', ')
-          : `${total_pieces} piezas variadas`
-
-        const summaryPrompt = `Un usuario ha comido en un buffet de sushi (${duration_minutes} min): ${breakdownText}. Total: ${total_pieces} piezas, ${calories} kcal. En una sola frase breve (máx. 20 palabras) en español: ¿qué balance da este buffet? Sin repetir los números.`
-
-        const gemRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: summaryPrompt }] }],
-              generationConfig: { temperature: 0.6, maxOutputTokens: 80 },
-            }),
-          }
-        )
-        if (gemRes.ok) {
-          const gemData = await gemRes.json()
-          const text = gemData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
-          if (text.length > 5 && text.length < 200) summary = text
-        }
-      } catch { /* summary is optional, ignore errors */ }
+      const prompt = buildGeminiPrompt(breakdown, total_pieces, duration_minutes)
+      const geminiResult = await callGemini(apiKey, prompt)
+      nutrition = geminiResult ?? calcLocal(breakdown, total_pieces)
+    } else {
+      nutrition = calcLocal(breakdown, total_pieces)
     }
+
+    const { calories, protein, carbs, fat, summary } = nutrition
 
     // ── Fetch previous record ────────────────────────────────────────────────
     const db = getDb()
@@ -127,9 +262,9 @@ export async function POST(req: NextRequest) {
       total_pieces,
       breakdown,
       duration_minutes,
-      is_record: isRecord,
+      is_record:      isRecord,
       previous_record: previousRecord,
-      first_session: isFirstSession,
+      first_session:  isFirstSession,
       summary,
     })
 
@@ -152,7 +287,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       id, total_pieces,
-      is_record: isRecord,
+      is_record:       isRecord,
       is_first_session: isFirstSession,
       previous_record: previousRecord,
       calories, protein, carbs, fat,
@@ -190,8 +325,4 @@ export async function GET() {
     const msg = err instanceof Error ? err.message : 'Error'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
-}
-
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
