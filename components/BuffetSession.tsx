@@ -26,6 +26,11 @@ export default function BuffetSession() {
   const [elapsed, setElapsed] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState('')
+  const [geminiFailState, setGeminiFailState] = useState<{
+    local_estimate: { calories: number; protein: number; carbs: number; fat: number; summary: string }
+    retrying: boolean
+    savingLocal: boolean
+  } | null>(null)
 
   const buttonRef = useRef<HTMLButtonElement>(null)
   const rippleId = useRef(0)
@@ -68,28 +73,90 @@ export default function BuffetSession() {
     setTimeout(() => setRipples(r => r.filter(rp => rp.id !== id)), 700)
   }
 
+  async function callBuffetAPI(force_local = false) {
+    if (!session) return
+    const duration_minutes = Math.max(1, Math.round(elapsed / 60))
+    const res = await fetch('/api/buffet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        total_pieces: session.totalPieces,
+        breakdown: session.breakdown,
+        duration_minutes,
+        force_local,
+      }),
+    })
+    return res
+  }
+
   async function handleFinish() {
     if (!session || finishing || session.totalPieces === 0) return
     setFinishing(true)
     setError('')
-    const duration_minutes = Math.max(1, Math.round(elapsed / 60))
+    setGeminiFailState(null)
     try {
-      const res = await fetch('/api/buffet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          total_pieces: session.totalPieces,
-          breakdown: session.breakdown,
-          duration_minutes,
-        }),
-      })
+      const res = await callBuffetAPI(false)
+      if (!res) { setFinishing(false); return }
       const data = await res.json()
+
+      if (res.status === 503 && data.gemini_failed) {
+        // Gemini unavailable — show choice UI
+        setGeminiFailState({ local_estimate: data.local_estimate, retrying: false, savingLocal: false })
+        setFinishing(false)
+        return
+      }
+
       if (!res.ok) { setError(data.error || 'Error al guardar'); setFinishing(false); return }
       setFinishedResult(data)
       setFinishing(false)
     } catch {
       setError('Error de conexión')
       setFinishing(false)
+    }
+  }
+
+  async function handleRetryGemini() {
+    if (!session || !geminiFailState) return
+    setGeminiFailState(s => s ? { ...s, retrying: true } : s)
+    try {
+      const res = await callBuffetAPI(false)
+      if (!res) { setGeminiFailState(s => s ? { ...s, retrying: false } : s); return }
+      const data = await res.json()
+
+      if (res.status === 503 && data.gemini_failed) {
+        // Still failing
+        setGeminiFailState(s => s ? { ...s, retrying: false } : s)
+        return
+      }
+      if (!res.ok) {
+        setGeminiFailState(s => s ? { ...s, retrying: false } : s)
+        setError(data.error || 'Error al guardar')
+        return
+      }
+      setGeminiFailState(null)
+      setFinishedResult(data)
+    } catch {
+      setGeminiFailState(s => s ? { ...s, retrying: false } : s)
+    }
+  }
+
+  async function handleUseLocal() {
+    if (!session || !geminiFailState) return
+    setGeminiFailState(s => s ? { ...s, savingLocal: true } : s)
+    try {
+      const res = await callBuffetAPI(true)
+      if (!res) { setGeminiFailState(s => s ? { ...s, savingLocal: false } : s); return }
+      const data = await res.json()
+      if (!res.ok) {
+        setGeminiFailState(s => s ? { ...s, savingLocal: false } : s)
+        setError(data.error || 'Error al guardar')
+        return
+      }
+      setGeminiFailState(null)
+      setFinishedResult(data)
+    } catch {
+      setGeminiFailState(s => s ? { ...s, savingLocal: false } : s)
+      setError('Error de conexión')
     }
   }
 
@@ -101,6 +168,119 @@ export default function BuffetSession() {
   const totalPieces = session.totalPieces
   const breakdown   = session.breakdown
   const emojiIdx    = session.emojiIdx
+
+  // ── Gemini failed: offer retry or local estimate ───────────────────────────
+  if (geminiFailState) {
+    const { local_estimate, retrying, savingLocal } = geminiFailState
+    const busy = retrying || savingLocal
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        background: 'linear-gradient(180deg, #080004 0%, #0d0008 60%, #100004 100%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '32px 24px',
+      }}>
+        {/* Icon */}
+        <div style={{
+          width: 72, height: 72, borderRadius: 22, marginBottom: 20,
+          background: 'rgba(255,159,10,0.1)',
+          border: '1px solid rgba(255,159,10,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 34,
+        }}>⚠️</div>
+
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 8, textAlign: 'center' }}>
+          Gemini no está disponible
+        </h2>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center', maxWidth: 280, lineHeight: 1.55, marginBottom: 28 }}>
+          No se pudo conectar con la IA para analizar tu sesión. Puedes volver a intentarlo o guardar con la estimación local.
+        </p>
+
+        {/* Local estimate preview */}
+        <div style={{
+          width: '100%', maxWidth: 320,
+          background: 'rgba(255,255,255,0.04)',
+          border: '0.5px solid rgba(255,255,255,0.08)',
+          borderRadius: 18, padding: '16px 20px',
+          marginBottom: 24,
+        }}>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: 12, textAlign: 'center' }}>
+            Estimación local · {session?.totalPieces} piezas
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
+            {[
+              { l: 'Calorías', v: local_estimate.calories, u: 'kcal', c: '#FF9F0A' },
+              { l: 'Proteína', v: local_estimate.protein,  u: 'g',    c: '#32D74B' },
+              { l: 'Carbos',   v: local_estimate.carbs,    u: 'g',    c: '#5AC8FA' },
+              { l: 'Grasa',    v: local_estimate.fat,      u: 'g',    c: '#FFD60A' },
+            ].map(m => (
+              <div key={m.l} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 19, fontWeight: 800, color: m.c, fontVariantNumeric: 'tabular-nums' }}>
+                  {m.v}<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 2 }}>{m.u}</span>
+                </div>
+                <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                  {m.l}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Retry button */}
+        <button
+          onClick={handleRetryGemini}
+          disabled={busy}
+          style={{
+            width: '100%', maxWidth: 320, height: 52, borderRadius: 16, marginBottom: 10,
+            background: busy ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #dc143c 0%, #7a0015 100%)',
+            border: busy ? '0.5px solid rgba(255,255,255,0.07)' : '0.5px solid rgba(220,20,60,0.5)',
+            color: busy ? 'rgba(255,255,255,0.25)' : '#fff',
+            fontSize: 15, fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
+            boxShadow: !busy ? '0 4px 20px rgba(220,20,60,0.3)' : 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.25s',
+          }}
+        >
+          {retrying ? (
+            <>
+              <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#fff', animation: 'spinLoader 0.7s linear infinite', display: 'inline-block' }} />
+              Reintentando…
+            </>
+          ) : '🔄 Reintentar con Gemini'}
+        </button>
+
+        {/* Use local estimate button */}
+        <button
+          onClick={handleUseLocal}
+          disabled={busy}
+          style={{
+            width: '100%', maxWidth: 320, height: 52, borderRadius: 16,
+            background: 'rgba(255,255,255,0.05)',
+            border: '0.5px solid rgba(255,255,255,0.1)',
+            color: busy ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.65)',
+            fontSize: 15, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.25s',
+          }}
+        >
+          {savingLocal ? (
+            <>
+              <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'rgba(255,255,255,0.6)', animation: 'spinLoader 0.7s linear infinite', display: 'inline-block' }} />
+              Guardando…
+            </>
+          ) : '📊 Usar estimación local'}
+        </button>
+
+        {error && (
+          <p style={{ marginTop: 14, fontSize: 12, color: '#ff8080', textAlign: 'center' }}>{error}</p>
+        )}
+
+        <style>{`
+          @keyframes spinLoader { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    )
+  }
 
   // ── Result screen ──────────────────────────────────────────────────────────
   if (finishedResult) {

@@ -212,6 +212,7 @@ export async function POST(req: NextRequest) {
       total_pieces: number
       breakdown: Breakdown
       duration_minutes: number
+      force_local?: boolean
     }
 
     const { total_pieces, breakdown, duration_minutes } = body
@@ -223,15 +224,32 @@ export async function POST(req: NextRequest) {
     const settings = getSettings(session.userId)
     const apiKey   = settings?.gemini_api_key
 
-    let nutrition: { calories: number; protein: number; carbs: number; fat: number; summary: string }
+    // ── Try Gemini; if it fails, return a specific signal (don't save yet) ────
+    const forceLocal = (body as { force_local?: boolean }).force_local === true
 
-    if (apiKey) {
+    let nutrition: { calories: number; protein: number; carbs: number; fat: number; summary: string }
+    let geminiUsed = false
+
+    if (apiKey && !forceLocal) {
       const prompt = buildGeminiPrompt(breakdown, total_pieces, duration_minutes)
       const geminiResult = await callGemini(apiKey, prompt)
-      nutrition = geminiResult ?? calcLocal(breakdown, total_pieces)
+
+      if (!geminiResult) {
+        // Gemini failed — return local estimate WITHOUT saving so the client can choose
+        const local = calcLocal(breakdown, total_pieces)
+        return NextResponse.json({
+          gemini_failed: true,
+          local_estimate: local,
+        }, { status: 503 })
+      }
+
+      nutrition = geminiResult
+      geminiUsed = true
     } else {
       nutrition = calcLocal(breakdown, total_pieces)
     }
+
+    void geminiUsed // used for future logging if needed
 
     const { calories, protein, carbs, fat, summary } = nutrition
 
