@@ -8,7 +8,7 @@ const DB_FILE = path.join(DB_DIR, 'calorieai.db')
 
 let _db: DatabaseSync | null = null
 
-function getDb(): DatabaseSync {
+export function getDb(): DatabaseSync {
   if (_db) return _db
   fs.mkdirSync(DB_DIR, { recursive: true })
   _db = new DatabaseSync(DB_FILE)

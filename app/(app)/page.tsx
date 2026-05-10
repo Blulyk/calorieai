@@ -11,6 +11,7 @@ import MacroDonut from '@/components/MacroDonut'
 import WeightTracker from '@/components/WeightTracker'
 import FastingTimer from '@/components/FastingTimer'
 import AdaptiveTDEE from '@/components/AdaptiveTDEE'
+import BuffetSession from '@/components/BuffetSession'
 
 interface Meal {
   id: string; name: string | null; photo_path: string | null
@@ -73,6 +74,15 @@ export default function Dashboard() {
   const [coachLoading, setCoachLoading] = useState(false)
   const [coachError, setCoachError] = useState('')
   const [adaptiveTDEE, setAdaptiveTDEE] = useState<{ tdee: number; confidence: 'high'|'medium'|'low'; days: number } | null>(null)
+  const [showBuffet, setShowBuffet] = useState(false)
+  const [buffetComplete, setBuffetComplete] = useState<{ total_pieces: number; is_record: boolean; calories: number } | null>(null)
+  const [buffetEmojiIdx, setBuffetEmojiIdx] = useState(0)
+
+  const BUFFET_EMOJIS = ['🍣', '🦐', '🐟', '🌀', '🍱', '🥢', '🍤', '🫙', '🍙', '🎏']
+  useEffect(() => {
+    const iv = setInterval(() => setBuffetEmojiIdx(i => (i + 1) % 10), 1800)
+    return () => clearInterval(iv)
+  }, [])
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -180,6 +190,22 @@ export default function Dashboard() {
 
   return (
     <div className="liquid-page mx-auto min-h-screen max-w-lg pb-8">
+
+      {/* Buffet session overlay */}
+      {showBuffet && (
+        <BuffetSession
+          onClose={() => setShowBuffet(false)}
+          onComplete={(result) => {
+            setShowBuffet(false)
+            setBuffetComplete({ total_pieces: result.total_pieces, is_record: result.is_record, calories: result.calories })
+            // Reload today's meals
+            fetch(`/api/meals?date=${today}`).then(r => r.json()).then(d => {
+              setMeals(d.meals || [])
+              setStats(d.stats || { calories: 0, protein: 0, carbs: 0, fat: 0 })
+            })
+          }}
+        />
+      )}
       {/* Header */}
       <div className="sticky top-0 z-10 px-5 pt-11 pb-3 header-glass animate-fadeIn">
         <div className="flex items-start justify-between">
@@ -369,6 +395,98 @@ export default function Dashboard() {
         {coachError && (
           <div className="rounded-2xl bg-red-500/10 px-4 py-3 text-xs text-red-400 border border-red-500/20 animate-fadeIn">
             {coachError}
+          </div>
+        )}
+
+        {/* Buffet session card */}
+        {isViewingToday && (
+          <div className="animate-fadeInUp" style={{ animationDelay: '0.20s' }}>
+            {/* Post-session toast */}
+            {buffetComplete && (
+              <div className="mb-2 rounded-2xl px-4 py-3 animate-fadeIn flex items-center gap-3"
+                style={{
+                  background: buffetComplete.is_record
+                    ? 'linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,150,0,0.08))'
+                    : 'rgba(220,20,60,0.07)',
+                  border: buffetComplete.is_record
+                    ? '0.5px solid rgba(255,215,0,0.3)'
+                    : '0.5px solid rgba(220,20,60,0.2)',
+                }}>
+                <span style={{ fontSize: 22 }}>{buffetComplete.is_record ? '🏆' : '🍣'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold" style={{ color: buffetComplete.is_record ? '#FFD700' : 'rgba(255,200,200,0.9)' }}>
+                    {buffetComplete.is_record ? `¡Nuevo récord! ${buffetComplete.total_pieces} piezas` : `Sesión finalizada · ${buffetComplete.total_pieces} piezas`}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    {Math.round(buffetComplete.calories)} kcal registradas
+                  </p>
+                </div>
+                <button onClick={() => setBuffetComplete(null)} style={{ color: 'rgba(255,255,255,0.3)', fontSize: 18, padding: '0 4px' }}>×</button>
+              </div>
+            )}
+
+            {/* Buffet card */}
+            <div
+              style={{
+                borderRadius: '1.6rem',
+                background: 'linear-gradient(135deg, rgba(90,0,15,0.55) 0%, rgba(40,0,8,0.7) 60%, rgba(12,0,3,0.8) 100%)',
+                border: '0.5px solid rgba(220,20,60,0.22)',
+                boxShadow: '0 0 40px rgba(180,0,30,0.12)',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              {/* Subtle glow */}
+              <div style={{
+                position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
+                background: 'radial-gradient(ellipse, rgba(220,20,60,0.18) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              }} />
+
+              <div className="px-5 py-4 flex items-center gap-4">
+                {/* Cycling emoji */}
+                <div style={{
+                  width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+                  background: 'radial-gradient(ellipse at 40% 35%, rgba(220,20,60,0.35) 0%, rgba(60,0,12,0.5) 100%)',
+                  border: '0.5px solid rgba(220,20,60,0.28)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 26,
+                  boxShadow: '0 0 20px rgba(180,0,30,0.2)',
+                  transition: 'all 0.5s ease',
+                }}>
+                  {BUFFET_EMOJIS[buffetEmojiIdx]}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,120,120,0.6)', marginBottom: 2 }}>
+                    Buffet de sushi
+                  </p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,240,240,0.88)', lineHeight: 1.2 }}>
+                    Iniciar sesión de buffet
+                  </p>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                    Cuenta piezas · IA calcula nutrición
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowBuffet(true)}
+                  style={{
+                    height: 36, paddingLeft: 14, paddingRight: 14,
+                    borderRadius: 12, flexShrink: 0,
+                    background: 'linear-gradient(135deg, #dc143c 0%, #7a0015 100%)',
+                    border: '0.5px solid rgba(220,20,60,0.45)',
+                    color: '#fff', fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer', letterSpacing: '0.01em',
+                    boxShadow: '0 2px 14px rgba(220,20,60,0.3)',
+                    whiteSpace: 'nowrap',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  Iniciar →
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

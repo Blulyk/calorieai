@@ -82,6 +82,7 @@ export default function HistoryPage() {
   const [loading, setLoading]           = useState(true)
   const [view, setView]                 = useState<'calendar' | 'week'>('calendar')
   const [weightLogs, setWeightLogs]     = useState<{date: string; weight_kg: number}[]>([])
+  const [buffetStats, setBuffetStats]   = useState<{ max_pieces: number; total_sessions: number }>({ max_pieces: 0, total_sessions: 0 })
 
   const totalDays  = getDaysInMonth(year, month)
   const startOffset = getFirstDayOffset(year, month)
@@ -104,6 +105,7 @@ export default function HistoryPage() {
       setLoading(false)
     })
     fetch('/api/weight').then(r => r.json()).then(d => setWeightLogs(d.logs || []))
+    fetch('/api/buffet').then(r => r.json()).then(d => { if (!d.error) setBuffetStats(d) })
   }, [year, month, startDate, endDate])
 
   // Load meals for selected date
@@ -345,8 +347,52 @@ export default function HistoryPage() {
                       )}
                     </div>
                   ) : (
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    dayMeals.map(m => <MealCard key={m.id} meal={m as any} />)
+                    <div className="space-y-2">
+                      {dayMeals.map(m => {
+                        // Parse buffet metadata from notes
+                        let buffetData: { buffet: boolean; total_pieces: number; is_record?: boolean; first_session?: boolean } | null = null
+                        if (m.notes) {
+                          try {
+                            const n = JSON.parse(m.notes)
+                            if (n?.buffet) buffetData = n
+                          } catch { /* ignore */ }
+                        }
+                        return (
+                          <div key={m.id} style={{ position: 'relative' }}>
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            <MealCard meal={m as any} />
+                            {buffetData && (
+                              <div style={{
+                                position: 'absolute', top: 8, right: 8,
+                                display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4,
+                                pointerEvents: 'none',
+                              }}>
+                                <div style={{
+                                  background: 'rgba(10,0,4,0.82)',
+                                  border: '0.5px solid rgba(220,20,60,0.35)',
+                                  borderRadius: 8, padding: '3px 8px',
+                                  fontSize: 11, fontWeight: 700, color: '#ff6b81',
+                                  backdropFilter: 'blur(6px)',
+                                }}>
+                                  🍣 {buffetData.total_pieces} piezas
+                                </div>
+                                {(buffetData.is_record || buffetData.first_session) && (
+                                  <div style={{
+                                    background: 'linear-gradient(135deg, rgba(255,215,0,0.22), rgba(255,150,0,0.15))',
+                                    border: '0.5px solid rgba(255,215,0,0.45)',
+                                    borderRadius: 8, padding: '3px 8px',
+                                    fontSize: 10, fontWeight: 800, color: '#FFD700',
+                                    letterSpacing: '0.05em',
+                                  }}>
+                                    🏆 NUEVO RÉCORD
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )}
@@ -379,6 +425,56 @@ export default function HistoryPage() {
             const totalMeals  = weekSlots.reduce((sum, iso) => sum + (statsMap[iso]?.meal_count ?? 0), 0)
 
             const achievements = [
+              {
+                id: 'buffet_first',
+                color: '#FF2D55',
+                label: 'Primer buffet',
+                desc: 'Completa tu primera sesión de sushi',
+                current: buffetStats.total_sessions > 0 ? 1 : 0,
+                total: 1,
+                unlocked: buffetStats.total_sessions > 0,
+                icon: (c: string) => <span style={{ fontSize: 16, color: c, lineHeight: 1 }}>🍣</span>,
+              },
+              {
+                id: 'buffet_25',
+                color: '#FF6B81',
+                label: 'Apetito de sushi',
+                desc: 'Come 25 piezas en una sesión de buffet',
+                current: Math.min(buffetStats.max_pieces, 25),
+                total: 25,
+                unlocked: buffetStats.max_pieces >= 25,
+                icon: (c: string) => <span style={{ fontSize: 16, color: c, lineHeight: 1 }}>🦐</span>,
+              },
+              {
+                id: 'buffet_40',
+                color: '#FF9F0A',
+                label: 'Maestro del maki',
+                desc: 'Come 40 piezas en una sesión de buffet',
+                current: Math.min(buffetStats.max_pieces, 40),
+                total: 40,
+                unlocked: buffetStats.max_pieces >= 40,
+                icon: (c: string) => <span style={{ fontSize: 16, color: c, lineHeight: 1 }}>🌀</span>,
+              },
+              {
+                id: 'buffet_50',
+                color: '#BF5AF2',
+                label: 'Campeón del buffet',
+                desc: 'Come 50 piezas en una sesión de buffet',
+                current: Math.min(buffetStats.max_pieces, 50),
+                total: 50,
+                unlocked: buffetStats.max_pieces >= 50,
+                icon: (c: string) => <span style={{ fontSize: 16, color: c, lineHeight: 1 }}>🏆</span>,
+              },
+              {
+                id: 'buffet_100',
+                color: '#FFD700',
+                label: 'Leyenda del sushi',
+                desc: 'Come 100 piezas en una sesión de buffet',
+                current: Math.min(buffetStats.max_pieces, 100),
+                total: 100,
+                unlocked: buffetStats.max_pieces >= 100,
+                icon: (c: string) => <span style={{ fontSize: 16, color: c, lineHeight: 1 }}>🎌</span>,
+              },
               {
                 id: 'active',
                 color: '#32D74B',
