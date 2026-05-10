@@ -285,7 +285,9 @@ function calcLocal(breakdown: Breakdown, total_pieces: number) {
   }
 }
 
-// ── POST: finish a buffet session ─────────────────────────────────────────────
+// ── POST: analyze or save a buffet session ────────────────────────────────────
+// mode='analyze' → call Gemini/local, return nutrition WITHOUT saving
+// mode='save'    → save the provided nutrition to DB, return full result
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession()
@@ -295,7 +297,9 @@ export async function POST(req: NextRequest) {
       total_pieces: number
       breakdown: Breakdown
       duration_minutes: number
+      mode: 'analyze' | 'save'
       force_local?: boolean
+      nutrition?: { calories: number; protein: number; carbs: number; fat: number; summary: string }
     }
 
     const { total_pieces, breakdown, duration_minutes } = body
@@ -303,41 +307,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Debes registrar al menos una pieza' }, { status: 400 })
     }
 
-    // ── Build prompt and call Gemini ─────────────────────────────────────────
-    const settings = getSettings(session.userId)
-    const apiKey   = settings?.gemini_api_key
+    // ── ANALYZE: return nutrition without saving ──────────────────────────────
+    if (body.mode === 'analyze') {
+      const settings  = getSettings(session.userId)
+      const apiKey    = settings?.gemini_api_key
+      const forceLocal = body.force_local === true
 
-    // ── Try Gemini; if it fails, return a specific signal (don't save yet) ────
-    const forceLocal = (body as { force_local?: boolean }).force_local === true
+      if (apiKey && !forceLocal) {
+        const prompt = buildGeminiPrompt(breakdown, total_pieces, duration_minutes)
+        const { result: geminiResult, attempts } = await callGemini(apiKey, prompt)
 
-    let nutrition: { calories: number; protein: number; carbs: number; fat: number; summary: string }
-    let geminiUsed = false
+        if (!geminiResult) {
+          const local = calcLocal(breakdown, total_pieces)
+          return NextResponse.json({ gemini_failed: true, local_estimate: local, attempts }, { status: 503 })
+        }
 
-    if (apiKey && !forceLocal) {
-      const prompt = buildGeminiPrompt(breakdown, total_pieces, duration_minutes)
-      const { result: geminiResult, attempts } = await callGemini(apiKey, prompt)
-
-      if (!geminiResult) {
-        // Gemini failed — return diagnostic info + local estimate WITHOUT saving
-        const local = calcLocal(breakdown, total_pieces)
-        return NextResponse.json({
-          gemini_failed: true,
-          local_estimate: local,
-          attempts,            // full attempt log sent to client
-        }, { status: 503 })
+        return NextResponse.json({ ...geminiResult, gemini_used: true })
       }
 
-      nutrition = geminiResult
-      geminiUsed = true
-    } else {
-      nutrition = calcLocal(breakdown, total_pieces)
+      const local = calcLocal(breakdown, total_pieces)
+      return NextResponse.json({ ...local, gemini_used: false })
     }
 
-    void geminiUsed
+    // ── SAVE: persist the chosen nutrition to DB ──────────────────────────────
+    const nutrition = body.nutrition
+    if (!nutrition) {
+      return NextResponse.json({ error: 'Datos de nutrición requeridos para guardar' }, { status: 400 })
+    }
 
     const { calories, protein, carbs, fat, summary } = nutrition
 
-    // ── Fetch previous record ────────────────────────────────────────────────
+    // Fetch previous record
     const db = getDb()
     const buffetMeals = db.prepare(
       `SELECT notes FROM meals WHERE user_id = ? AND notes LIKE '%"buffet":true%' ORDER BY created_at ASC`
@@ -347,53 +347,33 @@ export async function POST(req: NextRequest) {
     for (const m of buffetMeals) {
       try {
         const n = JSON.parse(m.notes)
-        if (n?.buffet && typeof n.total_pieces === 'number') {
-          previousRecord = Math.max(previousRecord, n.total_pieces)
-        }
+        if (n?.buffet && typeof n.total_pieces === 'number') previousRecord = Math.max(previousRecord, n.total_pieces)
       } catch { /* skip */ }
     }
 
     const isFirstSession = buffetMeals.length === 0
     const isRecord       = total_pieces > previousRecord
 
-    // ── Save meal ────────────────────────────────────────────────────────────
     const today = new Date().toISOString().split('T')[0]
     const id    = randomUUID()
     const notes = JSON.stringify({
-      buffet: true,
-      total_pieces,
-      breakdown,
-      duration_minutes,
-      is_record:      isRecord,
-      previous_record: previousRecord,
-      first_session:  isFirstSession,
-      summary,
+      buffet: true, total_pieces, breakdown, duration_minutes,
+      is_record: isRecord, previous_record: previousRecord,
+      first_session: isFirstSession, summary,
     })
 
     createMeal({
-      id,
-      user_id:    session.userId,
-      date:       today,
+      id, user_id: session.userId, date: today,
       photo_path: '/buffet-banner.svg',
-      name:       `Buffet de sushi · ${total_pieces} piezas`,
-      foods: JSON.stringify([{
-        name:     'Buffet de sushi',
-        calories, protein, carbs, fat,
-        portion:  `${total_pieces} piezas`,
-      }]),
-      calories, protein, carbs, fat,
-      fiber:     0,
-      meal_type: 'lunch',
-      notes,
+      name:  `Buffet de sushi · ${total_pieces} piezas`,
+      foods: JSON.stringify([{ name: 'Buffet de sushi', calories, protein, carbs, fat, portion: `${total_pieces} piezas` }]),
+      calories, protein, carbs, fat, fiber: 0, meal_type: 'lunch', notes,
     })
 
     return NextResponse.json({
       id, total_pieces,
-      is_record:       isRecord,
-      is_first_session: isFirstSession,
-      previous_record: previousRecord,
-      calories, protein, carbs, fat,
-      summary,
+      is_record: isRecord, is_first_session: isFirstSession, previous_record: previousRecord,
+      calories, protein, carbs, fat, summary,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error inesperado'
