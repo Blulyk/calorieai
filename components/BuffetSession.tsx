@@ -5,6 +5,28 @@ import { useBuffet, type CategoryId } from '@/lib/buffetContext'
 
 const EMOJIS = ['🍣', '🦐', '🐟', '🌀', '🍱', '🥢', '🍤', '🫙', '🍙', '🎏', '🦑', '🐙']
 
+interface GeminiAttempt { model: string; ok: boolean; status: number | string; detail: string }
+
+function summarizeAttempts(attempts: GeminiAttempt[]): string {
+  if (!attempts.length) return 'No se pudo contactar con Gemini'
+  if (attempts.some(a => a.status === 401)) return 'API key no autorizada'
+  if (attempts.some(a => a.status === 403)) return 'API key sin permisos de acceso'
+  if (attempts.every(a => a.status === 429)) return `Cuota agotada · ${attempts.length} modelo${attempts.length > 1 ? 's' : ''} probado${attempts.length > 1 ? 's' : ''}`
+  if (attempts.every(a => a.status === 'network_error')) return 'Sin respuesta de los servidores de Google'
+  const n = attempts.length
+  return `${n} modelo${n > 1 ? 's' : ''} probado${n > 1 ? 's' : ''} · ninguno respondió correctamente`
+}
+
+function shortStatus(a: GeminiAttempt): string {
+  if (a.ok) return 'OK'
+  if (a.status === 'network_error') return 'Sin red / Timeout'
+  if (a.status === 'parse_error') return 'Respuesta vacía'
+  if (a.status === 'bad_json') return 'JSON inválido'
+  if (a.status === 'sanity_failed') return 'Valores anómalos'
+  if (typeof a.status === 'number') return `HTTP ${a.status}`
+  return 'Error'
+}
+
 const CATEGORIES = [
   { id: 'nigiri',  label: 'Nigiri',  emoji: '🍣' },
   { id: 'maki',    label: 'Maki',    emoji: '🌀' },
@@ -26,7 +48,7 @@ export default function BuffetSession() {
   const [elapsed, setElapsed] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState('')
-  interface GeminiAttempt { model: string; ok: boolean; status: number | string; detail: string }
+  const [showDiag, setShowDiag] = useState(false)
   const [geminiFailState, setGeminiFailState] = useState<{
     local_estimate: { calories: number; protein: number; carbs: number; fat: number; summary: string }
     attempts: GeminiAttempt[]
@@ -123,6 +145,7 @@ export default function BuffetSession() {
 
   async function handleRetryGemini() {
     if (!session || !geminiFailState) return
+    setShowDiag(false)
     setGeminiFailState(s => s ? { ...s, retrying: true } : s)
     try {
       const res = await callBuffetAPI(false)
@@ -183,10 +206,7 @@ export default function BuffetSession() {
   if (geminiFailState) {
     const { local_estimate, attempts, retrying, savingLocal } = geminiFailState
     const busy = retrying || savingLocal
-
-    // Determine the most informative top-level error to show
-    const lastAttempt = attempts[attempts.length - 1]
-    const topError = lastAttempt?.detail ?? 'No se pudo conectar con Gemini'
+    const summary = summarizeAttempts(attempts)
 
     return (
       <div style={{
@@ -198,7 +218,7 @@ export default function BuffetSession() {
       }}>
         <div style={{ width: '100%', maxWidth: 360 }}>
 
-          {/* Icon + title */}
+          {/* Icon + title + one-line summary */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
             <div style={{
               width: 52, height: 52, borderRadius: 16, flexShrink: 0,
@@ -210,42 +230,57 @@ export default function BuffetSession() {
                 Gemini no disponible
               </h2>
               <p style={{ fontSize: 12, color: 'rgba(255,159,10,0.8)', margin: '3px 0 0', lineHeight: 1.4 }}>
-                {topError}
+                {summary}
               </p>
             </div>
           </div>
 
-          {/* Attempt log */}
+          {/* Collapsible diagnostics */}
           {attempts.length > 0 && (
-            <div style={{
-              background: 'rgba(0,0,0,0.35)',
-              border: '0.5px solid rgba(255,255,255,0.07)',
-              borderRadius: 14, padding: '12px 14px',
-              marginBottom: 18,
-            }}>
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 10 }}>
-                Modelos probados
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {attempts.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    {/* Status dot */}
-                    <div style={{
-                      width: 7, height: 7, borderRadius: '50%', marginTop: 4, flexShrink: 0,
-                      background: a.ok ? '#32D74B' : '#FF453A',
-                      boxShadow: a.ok ? '0 0 6px #32D74B88' : '0 0 6px #FF453A88',
-                    }} />
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: a.ok ? '#32D74B' : 'rgba(255,255,255,0.75)', margin: 0, fontFamily: 'monospace' }}>
+            <div style={{ marginBottom: 18 }}>
+              <button
+                onClick={() => setShowDiag(d => !d)}
+                style={{
+                  background: 'none', border: 'none', padding: '4px 0',
+                  fontSize: 11, color: 'rgba(255,255,255,0.28)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                <span style={{
+                  display: 'inline-block', fontSize: 8,
+                  transform: showDiag ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.18s',
+                }}>▶</span>
+                Ver diagnóstico
+              </button>
+              {showDiag && (
+                <div style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '0.5px solid rgba(255,255,255,0.06)',
+                  borderRadius: 12, padding: '10px 14px', marginTop: 6,
+                }}>
+                  {attempts.map((a, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      paddingBottom: i < attempts.length - 1 ? 7 : 0,
+                      marginBottom: i < attempts.length - 1 ? 7 : 0,
+                      borderBottom: i < attempts.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none',
+                    }}>
+                      <div style={{
+                        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                        background: a.ok ? '#32D74B' : '#FF453A',
+                      }} />
+                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(255,255,255,0.55)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.model}
-                      </p>
-                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '2px 0 0', lineHeight: 1.45, wordBreak: 'break-word' }}>
-                        {a.detail}
-                      </p>
+                      </span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', flexShrink: 0 }}>
+                        {shortStatus(a)}
+                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

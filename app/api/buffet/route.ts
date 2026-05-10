@@ -136,7 +136,7 @@ async function callGemini(apiKey: string, prompt: string): Promise<{
   result: { calories: number; protein: number; carbs: number; fat: number; summary: string } | null
   attempts: GeminiAttempt[]
 }> {
-  const models = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
   const attempts: GeminiAttempt[] = []
 
   for (const model of models) {
@@ -188,8 +188,9 @@ async function callGemini(apiKey: string, prompt: string): Promise<{
         model, ok: false, status: res.status,
         detail: googleMsg ? `${friendly}: "${googleMsg}"` : friendly,
       })
-      // 429 / quota errors affect all models — no point trying more
-      if (res.status === 429 || res.status === 403 || res.status === 401) break
+      // 401/403 = key-level auth errors — no point trying other models with the same key
+      // 429 = per-model quota, so we DO continue to the next model
+      if (res.status === 403 || res.status === 401) break
       continue
     }
 
