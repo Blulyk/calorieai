@@ -1,59 +1,45 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useBuffet, type CategoryId } from '@/lib/buffetContext'
 
 const EMOJIS = ['🍣', '🦐', '🐟', '🌀', '🍱', '🥢', '🍤', '🫙', '🍙', '🎏', '🦑', '🐙']
 
 const CATEGORIES = [
-  { id: 'nigiri',   label: 'Nigiri',   emoji: '🍣' },
-  { id: 'maki',     label: 'Maki',     emoji: '🌀' },
-  { id: 'tempura',  label: 'Tempura',  emoji: '🍤' },
-  { id: 'gyoza',    label: 'Gyoza',    emoji: '🥟' },
-  { id: 'postre',   label: 'Postre',   emoji: '🍡' },
-  { id: 'otros',    label: 'Otros',    emoji: '🍱' },
+  { id: 'nigiri',  label: 'Nigiri',  emoji: '🍣' },
+  { id: 'maki',    label: 'Maki',    emoji: '🌀' },
+  { id: 'tempura', label: 'Tempura', emoji: '🍤' },
+  { id: 'gyoza',   label: 'Gyoza',   emoji: '🥟' },
+  { id: 'postre',  label: 'Postre',  emoji: '🍡' },
+  { id: 'otros',   label: 'Otros',   emoji: '🍱' },
 ] as const
 
-type CategoryId = 'nigiri' | 'maki' | 'tempura' | 'gyoza' | 'postre' | 'otros'
+export default function BuffetSession() {
+  const {
+    session, fullscreen, finishedResult,
+    addPiece, adjustCategory, setFullscreen, endSession,
+    setFinishedResult,
+  } = useBuffet()
 
-interface BuffetResult {
-  id: string
-  total_pieces: number
-  is_record: boolean
-  previous_record: number
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-}
-
-interface BuffetSessionProps {
-  onClose: () => void
-  onComplete: (result: BuffetResult) => void
-}
-
-interface Ripple { id: number; x: number; y: number }
-
-export default function BuffetSession({ onClose, onComplete }: BuffetSessionProps) {
-  const [totalPieces, setTotalPieces] = useState(0)
-  const [breakdown, setBreakdown] = useState<Record<CategoryId, number>>({
-    nigiri: 0, maki: 0, tempura: 0, gyoza: 0, postre: 0, otros: 0,
-  })
-  const [emojiIdx, setEmojiIdx] = useState(0)
-  const [ripples, setRipples] = useState<Ripple[]>([])
   const [pressed, setPressed] = useState(false)
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([])
   const [elapsed, setElapsed] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState('')
-  const [showResult, setShowResult] = useState<BuffetResult | null>(null)
 
-  const startTime = useRef(Date.now())
-  const rippleId = useRef(0)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const rippleId = useRef(0)
 
+  // Live timer driven by session.startTime (survives navigation)
   useEffect(() => {
-    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - startTime.current) / 1000)), 1000)
+    if (!session) return
+    const update = () => setElapsed(Math.floor((Date.now() - session.startTime) / 1000))
+    update()
+    const iv = setInterval(update, 1000)
     return () => clearInterval(iv)
-  }, [])
+  }, [session])
+
+  if (!session || !fullscreen) return null
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60)
@@ -72,10 +58,8 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
 
   function handleTap(e: React.PointerEvent<HTMLButtonElement>) {
     if (finishing) return
-    setTotalPieces(p => p + 1)
-    setEmojiIdx(i => (i + 1) % EMOJIS.length)
+    addPiece()
     triggerSpring()
-
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
@@ -84,12 +68,8 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
     setTimeout(() => setRipples(r => r.filter(rp => rp.id !== id)), 700)
   }
 
-  function adjustCategory(id: CategoryId, delta: number) {
-    setBreakdown(b => ({ ...b, [id]: Math.max(0, b[id] + delta) }))
-  }
-
   async function handleFinish() {
-    if (finishing || totalPieces === 0) return
+    if (!session || finishing || session.totalPieces === 0) return
     setFinishing(true)
     setError('')
     const duration_minutes = Math.max(1, Math.round(elapsed / 60))
@@ -97,31 +77,45 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
       const res = await fetch('/api/buffet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ total_pieces: totalPieces, breakdown, duration_minutes }),
+        body: JSON.stringify({
+          total_pieces: session.totalPieces,
+          breakdown: session.breakdown,
+          duration_minutes,
+        }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al guardar'); setFinishing(false); return }
-      setShowResult(data)
+      setFinishedResult(data)
+      setFinishing(false)
     } catch {
       setError('Error de conexión')
       setFinishing(false)
     }
   }
 
+  function handleClose() {
+    // × minimizes to mini bar — doesn't destroy the session
+    setFullscreen(false)
+  }
+
+  const totalPieces = session.totalPieces
+  const breakdown   = session.breakdown
+  const emojiIdx    = session.emojiIdx
+
   // ── Result screen ──────────────────────────────────────────────────────────
-  if (showResult) {
+  if (finishedResult) {
     return (
       <div style={{
-        position: 'fixed', inset: 0, zIndex: 200,
+        position: 'fixed', inset: 0, zIndex: 300,
         background: 'linear-gradient(180deg, #0a0005 0%, #0d0008 60%, #120003 100%)',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '40px 24px',
       }}>
         <div style={{ fontSize: 72, marginBottom: 16, animation: 'popIn 0.5s cubic-bezier(.36,.07,.19,.97)' }}>
-          {showResult.is_record ? '🏆' : '🍣'}
+          {finishedResult.is_record ? '🏆' : '🍣'}
         </div>
 
-        {showResult.is_record && (
+        {finishedResult.is_record && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,150,0,0.15))',
             border: '1px solid rgba(255,215,0,0.4)',
@@ -131,12 +125,27 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
             boxShadow: '0 0 24px rgba(255,215,0,0.2)',
             animation: 'shimmer 2s ease-in-out infinite',
           }}>
-            🏆 ¡Nuevo récord! {showResult.previous_record > 0 ? `(antes: ${showResult.previous_record})` : '¡Primera sesión!'}
+            🏆 ¡Nuevo récord!
+            {finishedResult.previous_record > 0
+              ? ` (antes: ${finishedResult.previous_record})`
+              : ' ¡Primera sesión!'}
+          </div>
+        )}
+
+        {finishedResult.is_first_session && !finishedResult.is_record && (
+          <div style={{
+            background: 'rgba(220,20,60,0.12)',
+            border: '0.5px solid rgba(220,20,60,0.3)',
+            borderRadius: 16, padding: '8px 20px', marginBottom: 16,
+            fontSize: 13, fontWeight: 700, color: '#ff8099',
+            animation: 'popIn 0.5s ease 0.2s both',
+          }}>
+            🍣 ¡Primera sesión completada!
           </div>
         )}
 
         <div style={{ fontSize: 28, fontWeight: 900, color: '#fff', marginBottom: 4 }}>
-          {showResult.total_pieces} piezas
+          {finishedResult.total_pieces} piezas
         </div>
         <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginBottom: 28 }}>
           {formatTime(elapsed)} de sesión
@@ -148,13 +157,13 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
           border: '0.5px solid rgba(255,255,255,0.08)',
           borderRadius: 20, padding: '20px 24px',
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px',
-          marginBottom: 28,
+          marginBottom: finishedResult.summary ? 16 : 28,
         }}>
           {[
-            { l: 'Calorías',   v: Math.round(showResult.calories),  u: 'kcal', c: '#FF9F0A' },
-            { l: 'Proteína',   v: Math.round(showResult.protein),   u: 'g',    c: '#32D74B' },
-            { l: 'Carbos',     v: Math.round(showResult.carbs),     u: 'g',    c: '#5AC8FA' },
-            { l: 'Grasa',      v: Math.round(showResult.fat),       u: 'g',    c: '#FFD60A' },
+            { l: 'Calorías', v: Math.round(finishedResult.calories), u: 'kcal', c: '#FF9F0A' },
+            { l: 'Proteína', v: Math.round(finishedResult.protein),  u: 'g',    c: '#32D74B' },
+            { l: 'Carbos',   v: Math.round(finishedResult.carbs),    u: 'g',    c: '#5AC8FA' },
+            { l: 'Grasa',    v: Math.round(finishedResult.fat),      u: 'g',    c: '#FFD60A' },
           ].map(m => (
             <div key={m.l} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: m.c, fontVariantNumeric: 'tabular-nums' }}>
@@ -167,8 +176,14 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
           ))}
         </div>
 
+        {finishedResult.summary ? (
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', textAlign: 'center', maxWidth: 280, lineHeight: 1.5, marginBottom: 20 }}>
+            {finishedResult.summary}
+          </p>
+        ) : null}
+
         <button
-          onClick={() => onComplete(showResult)}
+          onClick={() => { endSession() }}
           style={{
             width: '100%', maxWidth: 320, height: 56, borderRadius: 18,
             background: 'linear-gradient(135deg, #dc143c 0%, #8b0000 100%)',
@@ -178,7 +193,7 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
             boxShadow: '0 4px 24px rgba(220,20,60,0.35)',
           }}
         >
-          ¡Perfecto! Guardar en historial
+          ¡Perfecto! Ver historial
         </button>
 
         <style>{`
@@ -190,7 +205,7 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
           }
           @keyframes shimmer {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.75; }
+            50% { opacity: 0.7; }
           }
         `}</style>
       </div>
@@ -200,23 +215,17 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
   // ── Session screen ─────────────────────────────────────────────────────────
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
+      position: 'fixed', inset: 0, zIndex: 300,
       background: 'linear-gradient(180deg, #080004 0%, #0d0008 50%, #100004 100%)',
       display: 'flex', flexDirection: 'column',
       overflowY: 'auto',
     }}>
 
-      {/* Crimson atmospheric glow */}
+      {/* Atmospheric glows */}
       <div style={{
         position: 'fixed', top: -60, left: '50%', transform: 'translateX(-50%)',
         width: 340, height: 220, borderRadius: '50%',
         background: 'radial-gradient(ellipse, rgba(180,0,40,0.22) 0%, transparent 70%)',
-        pointerEvents: 'none', zIndex: 0,
-      }} />
-      <div style={{
-        position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-        width: 200, height: 200, borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(120,0,25,0.12) 0%, transparent 70%)',
         pointerEvents: 'none', zIndex: 0,
       }} />
 
@@ -238,12 +247,14 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
           <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
             Sesión en curso
           </span>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.75)', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.75)', fontVariantNumeric: 'tabular-nums' }}>
             {formatTime(elapsed)}
           </span>
         </div>
+        {/* × = minimize to mini bar, not end session */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
+          title="Minimizar (la sesión continúa)"
           style={{
             width: 34, height: 34, borderRadius: 10,
             background: 'rgba(255,255,255,0.05)',
@@ -253,10 +264,10 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
           }}
-        >×</button>
+        >−</button>
       </div>
 
-      {/* Title */}
+      {/* Title + total */}
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '4px 0 0', flexShrink: 0 }}>
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 4 }}>
           Buffet de sushi
@@ -276,8 +287,7 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
       <div style={{
         position: 'relative', zIndex: 1,
         display: 'flex', justifyContent: 'center',
-        margin: '16px 0 12px',
-        flexShrink: 0,
+        margin: '16px 0 12px', flexShrink: 0,
       }}>
         <button
           ref={buttonRef}
@@ -297,8 +307,7 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
             cursor: 'pointer',
             transform: pressed ? 'scale(0.87)' : 'scale(1)',
             transition: pressed ? 'transform 0.08s ease, box-shadow 0.1s ease' : 'box-shadow 0.35s ease',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
+            userSelect: 'none', WebkitUserSelect: 'none',
             touchAction: 'manipulation',
             position: 'relative', overflow: 'hidden',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -307,34 +316,25 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
           <span style={{ fontSize: 60, lineHeight: 1, zIndex: 1, position: 'relative', pointerEvents: 'none' }}>
             {EMOJIS[emojiIdx]}
           </span>
-          {/* Ripples */}
           {ripples.map(rp => (
             <span key={rp.id} style={{
-              position: 'absolute',
-              left: rp.x, top: rp.y,
-              width: 10, height: 10,
-              marginLeft: -5, marginTop: -5,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.45)',
+              position: 'absolute', left: rp.x, top: rp.y,
+              width: 10, height: 10, marginLeft: -5, marginTop: -5,
+              borderRadius: '50%', background: 'rgba(255,255,255,0.45)',
               animation: 'rippleExpand 0.65s ease-out forwards',
-              pointerEvents: 'none',
-              zIndex: 0,
+              pointerEvents: 'none', zIndex: 0,
             }} />
           ))}
-          {/* Inner ring decoration */}
           <div style={{
             position: 'absolute', inset: 8, borderRadius: '50%',
-            border: '0.5px solid rgba(255,255,255,0.06)',
-            pointerEvents: 'none',
+            border: '0.5px solid rgba(255,255,255,0.06)', pointerEvents: 'none',
           }} />
         </button>
       </div>
 
-      {/* Tap hint */}
       <p style={{
         textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.2)',
-        fontWeight: 500, letterSpacing: '0.05em', marginBottom: 12,
-        position: 'relative', zIndex: 1, flexShrink: 0,
+        fontWeight: 500, marginBottom: 12, position: 'relative', zIndex: 1, flexShrink: 0,
       }}>
         Toca por cada pieza que comas
       </p>
@@ -344,23 +344,16 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
         position: 'relative', zIndex: 1,
         padding: '0 14px',
         display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: 8, flex: 1,
-        alignContent: 'start',
+        gap: 8, flex: 1, alignContent: 'start',
       }}>
         {CATEGORIES.map(cat => {
           const count = breakdown[cat.id as CategoryId]
           return (
             <div key={cat.id} style={{
-              background: count > 0
-                ? 'rgba(220,20,60,0.07)'
-                : 'rgba(255,255,255,0.03)',
-              border: count > 0
-                ? '0.5px solid rgba(220,20,60,0.22)'
-                : '0.5px solid rgba(255,255,255,0.07)',
-              borderRadius: 16,
-              padding: '10px 10px 10px 12px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: 4,
+              background: count > 0 ? 'rgba(220,20,60,0.07)' : 'rgba(255,255,255,0.03)',
+              border: count > 0 ? '0.5px solid rgba(220,20,60,0.22)' : '0.5px solid rgba(255,255,255,0.07)',
+              borderRadius: 16, padding: '10px 10px 10px 12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
               transition: 'background 0.2s, border-color 0.2s',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -370,69 +363,54 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                <button
-                  onClick={() => adjustCategory(cat.id as CategoryId, -1)}
+                <button onClick={() => adjustCategory(cat.id as CategoryId, -1)}
                   style={{
                     width: 26, height: 26, borderRadius: 7,
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '0.5px solid rgba(255,255,255,0.09)',
-                    color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: 400,
+                    background: 'rgba(255,255,255,0.07)', border: '0.5px solid rgba(255,255,255,0.09)',
+                    color: 'rgba(255,255,255,0.6)', fontSize: 15,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', touchAction: 'manipulation',
-                  }}
-                >−</button>
+                  }}>−</button>
                 <span style={{
-                  fontSize: 15, fontWeight: 800, color: count > 0 ? '#ff6b81' : 'rgba(255,255,255,0.35)',
+                  fontSize: 15, fontWeight: 800,
+                  color: count > 0 ? '#ff6b81' : 'rgba(255,255,255,0.35)',
                   minWidth: 18, textAlign: 'center', fontVariantNumeric: 'tabular-nums',
                   transition: 'color 0.2s',
-                }}>
-                  {count}
-                </span>
-                <button
-                  onClick={() => adjustCategory(cat.id as CategoryId, 1)}
+                }}>{count}</span>
+                <button onClick={() => adjustCategory(cat.id as CategoryId, 1)}
                   style={{
                     width: 26, height: 26, borderRadius: 7,
-                    background: 'rgba(220,20,60,0.18)',
-                    border: '0.5px solid rgba(220,20,60,0.28)',
-                    color: '#ff6b81', fontSize: 15, fontWeight: 400,
+                    background: 'rgba(220,20,60,0.18)', border: '0.5px solid rgba(220,20,60,0.28)',
+                    color: '#ff6b81', fontSize: 15,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', touchAction: 'manipulation',
-                  }}
-                >+</button>
+                  }}>+</button>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Error */}
       {error && (
         <div style={{
-          position: 'relative', zIndex: 1,
-          margin: '10px 14px 0',
+          position: 'relative', zIndex: 1, margin: '10px 14px 0',
           padding: '10px 14px',
           background: 'rgba(255,59,48,0.1)', border: '0.5px solid rgba(255,59,48,0.3)',
           borderRadius: 12, fontSize: 12, color: '#ff8080', textAlign: 'center',
-        }}>
-          {error}
-        </div>
+        }}>{error}</div>
       )}
 
-      {/* Finalizar button */}
+      {/* Finalizar + abandon */}
       <div style={{ position: 'relative', zIndex: 1, padding: '12px 14px 40px', flexShrink: 0 }}>
         <button
           onClick={handleFinish}
           disabled={finishing || totalPieces === 0}
           style={{
             width: '100%', height: 56, borderRadius: 18,
-            background: (totalPieces === 0 || finishing)
-              ? 'rgba(255,255,255,0.05)'
-              : 'linear-gradient(135deg, #dc143c 0%, #7a0015 100%)',
-            border: (totalPieces === 0 || finishing)
-              ? '0.5px solid rgba(255,255,255,0.07)'
-              : '0.5px solid rgba(220,20,60,0.5)',
+            background: (totalPieces === 0 || finishing) ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #dc143c 0%, #7a0015 100%)',
+            border: (totalPieces === 0 || finishing) ? '0.5px solid rgba(255,255,255,0.07)' : '0.5px solid rgba(220,20,60,0.5)',
             color: (totalPieces === 0 || finishing) ? 'rgba(255,255,255,0.2)' : '#fff',
-            fontSize: 16, fontWeight: 700, letterSpacing: '0.02em',
+            fontSize: 16, fontWeight: 700,
             cursor: (totalPieces === 0 || finishing) ? 'not-allowed' : 'pointer',
             boxShadow: (totalPieces > 0 && !finishing) ? '0 4px 28px rgba(220,20,60,0.38)' : 'none',
             transition: 'all 0.3s ease',
@@ -449,9 +427,19 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
               }} />
               Calculando nutrición…
             </>
-          ) : (
-            <>🎌 Finalizar sesión</>
-          )}
+          ) : <>🎌 Finalizar sesión</>}
+        </button>
+
+        {/* Abandon session link */}
+        <button
+          onClick={() => { if (confirm('¿Terminar la sesión sin guardar?')) endSession() }}
+          style={{
+            width: '100%', marginTop: 12, background: 'none', border: 'none',
+            color: 'rgba(255,255,255,0.22)', fontSize: 12, cursor: 'pointer',
+            textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.1)',
+          }}
+        >
+          Terminar sin guardar
         </button>
       </div>
 
@@ -473,16 +461,6 @@ export default function BuffetSession({ onClose, onComplete }: BuffetSessionProp
         }
         @keyframes spinLoader {
           to { transform: rotate(360deg); }
-        }
-        @keyframes popIn {
-          0%   { transform: scale(0.3); opacity: 0; }
-          60%  { transform: scale(1.2); }
-          80%  { transform: scale(0.92); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes shimmer {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
         }
       `}</style>
     </div>

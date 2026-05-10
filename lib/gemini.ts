@@ -108,14 +108,35 @@ export function formatRetryDelay(seconds: number): string {
   return `${minutes} minuto${minutes === 1 ? '' : 's'}`
 }
 
-const FOOD_ANALYSIS_PROMPT = `You are a professional nutritionist AI. Analyze this food image and return a precise nutritional breakdown.
+const FOOD_ANALYSIS_PROMPT = `You are a professional dietitian and food scientist with 20 years of experience estimating nutritional content from images. Your calorie estimates are known for their accuracy and are used in medical-grade apps.
+
+Analyze this food image and return a PRECISE nutritional breakdown. Think step-by-step:
+1. Identify each food item and its preparation method (fried, boiled, baked, raw, sauced, etc.)
+2. Estimate the weight/volume using visual reference points (plate size, fork, hand, container)
+3. Apply the correct nutritional values for that specific preparation
+
+CRITICAL ACCURACY RULES:
+- A standard restaurant plate is ~26cm diameter; use this to calibrate portions
+- Sauces, dressings and oils ADD significant calories (1 tbsp oil = 120 kcal)
+- Fried foods have 30-50% more calories than their raw weight suggests
+- Cheese adds ~100 kcal per 30g slice; sauces add ~50-150 kcal per serving
+- Pasta/rice portions: a typical serving is 200-300g cooked (not the dry weight)
+- Bread: a standard slice = 70-80 kcal; burger bun = 130-150 kcal
+- Never underestimate: people tend to eat standard to large portions in real life
+- If you see a full plate of food it's typically 400-900 kcal, rarely less
+
+REFERENCE CALORIES (use these as anchors):
+- Big Mac: 550 kcal | Slice of pizza: 280 kcal | Bowl of pasta: 500-700 kcal
+- Grilled chicken breast 150g: 230 kcal | Salmon fillet 150g: 310 kcal
+- White rice 200g cooked: 260 kcal | Salad with dressing: 200-400 kcal
+- Avocado toast (2 slices): 380 kcal | Scrambled eggs 2: 200 kcal
 
 Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 {
   "foods": [
     {
-      "name": "Food name in English",
-      "portion": "estimated portion (e.g., '1 cup', '200g', '1 medium piece')",
+      "name": "Specific food name with preparation (e.g. 'Grilled salmon fillet', 'Fried chicken thigh')",
+      "portion": "estimated weight or count (e.g. '180g', '2 pieces', '1 cup cooked')",
       "calories": 300,
       "protein": 15,
       "carbs": 30,
@@ -130,16 +151,17 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
   "total_fiber": 3,
   "confidence": "high",
   "meal_type_suggestion": "lunch",
-  "notes": "Brief note about the meal"
+  "notes": "Brief note mentioning key assumptions about portions or cooking method"
 }
 
 Rules:
-- List each distinct food item separately
-- Use realistic portion estimates based on visual cues
-- calories/protein/carbs/fat/fiber must be numbers (not strings)
-- confidence: "high" if food is clearly identifiable, "medium" if partially visible, "low" if ambiguous
+- List EVERY distinct food item and condiment separately
+- Be specific: not "chicken" but "fried chicken thigh with skin"
+- calories/protein/carbs/fat/fiber must be numbers (never strings or null)
+- confidence: "high" if food clearly identifiable and portion estimable, "medium" if partially visible or unusual, "low" if very ambiguous
 - meal_type_suggestion: "breakfast", "lunch", "dinner", or "snack"
-- If no food is visible, return {"error": "No food detected in image"}`
+- If absolutely no food is visible, return {"error": "No food detected in image"}
+- Do NOT return 0 calories for real food items — estimate even if uncertain`
 
 export async function analyzeFood(apiKey: string, imageBase64: string, mimeType: string): Promise<AnalysisResult> {
   const genAI = new GoogleGenerativeAI(apiKey)
