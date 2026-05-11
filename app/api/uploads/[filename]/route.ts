@@ -21,7 +21,7 @@ export async function GET(
     ext === '.webp' ? 'image/webp' :
     'application/octet-stream'
 
-  return new NextResponse(upload.buffer, {
+  return new NextResponse(new Uint8Array(upload.buffer), {
     headers: {
       'Content-Type': contentType,
       'Cache-Control': 'public, max-age=31536000, immutable',
