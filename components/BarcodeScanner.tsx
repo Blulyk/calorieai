@@ -4,10 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType, MultiFormatReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } from '@zxing/library'
 
-interface BarcodeProduct {
+export interface BarcodeProduct {
   name: string; brand: string; portion: string
+  quantity: number; unit: 'g' | 'ml'
   calories: number; protein: number; carbs: number; fat: number; fiber: number
-  image: string | null; barcode: string
+  per100g: { calories: number; protein: number; carbs: number; fat: number; fiber: number }
+  emoji: string; image: string | null; barcode: string
 }
 
 interface Props {
@@ -31,6 +33,195 @@ function cameraErrorMessage(err: unknown) {
   return 'No se pudo iniciar la cámara. Usa la foto del código o introdúcelo manualmente.'
 }
 
+function calcNutrition(per100g: BarcodeProduct['per100g'], qty: number) {
+  const f = (v: number) => Math.round(v * qty / 100 * 10) / 10
+  return {
+    calories: Math.round(per100g.calories * qty / 100),
+    protein:  f(per100g.protein),
+    carbs:    f(per100g.carbs),
+    fat:      f(per100g.fat),
+    fiber:    f(per100g.fiber),
+  }
+}
+
+/* ─── Product Preview Screen ─────────────────────────────────────── */
+function ProductPreview({
+  product,
+  onConfirm,
+  onBack,
+}: {
+  product: BarcodeProduct
+  onConfirm: (adjusted: BarcodeProduct) => void
+  onBack: () => void
+}) {
+  const [qty, setQty] = useState(product.quantity)
+  const nutrition = calcNutrition(product.per100g, qty)
+
+  function handleQtyChange(raw: string) {
+    const n = parseInt(raw, 10)
+    if (!isNaN(n) && n > 0) setQty(n)
+  }
+
+  function confirm() {
+    onConfirm({
+      ...product,
+      quantity: qty,
+      portion: `${qty}${product.unit}`,
+      ...nutrition,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 flex flex-col overflow-y-auto" style={{ background: '#0A0A0B', zIndex: 200 }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 pt-12 pb-4 flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+        >
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-white">Producto encontrado</h2>
+          <p className="text-xs text-white/40">Ajusta la cantidad antes de añadir</p>
+        </div>
+      </div>
+
+      <div className="flex-1 px-5 pb-6 space-y-4">
+        {/* Banner: image or emoji */}
+        {product.image ? (
+          <div className="w-full h-44 rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
+          </div>
+        ) : (
+          <div
+            className="w-full h-44 rounded-3xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, rgba(10,132,255,0.18), rgba(94,92,230,0.18))' }}
+          >
+            <span style={{ fontSize: 80 }}>{product.emoji}</span>
+          </div>
+        )}
+
+        {/* Name + brand */}
+        <div className="glass rounded-3xl p-4 space-y-1">
+          <p className="text-white font-bold text-xl leading-tight">{product.name || 'Producto escaneado'}</p>
+          {product.brand ? (
+            <p className="text-white/45 text-sm">{product.brand}</p>
+          ) : null}
+          <p className="text-white/30 text-xs font-mono">{product.barcode}</p>
+        </div>
+
+        {/* Quantity adjuster */}
+        <div className="glass rounded-3xl p-4">
+          <p className="text-white/60 text-xs font-semibold uppercase tracking-wide mb-3">Cantidad</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setQty(q => Math.max(1, q - 10))}
+              className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-lg active:scale-90 transition-transform"
+              style={{ background: 'rgba(255,255,255,0.1)' }}
+            >
+              −
+            </button>
+            <div className="flex-1 flex items-center gap-2 rounded-2xl px-4 py-2.5" style={{ background: 'rgba(255,255,255,0.07)' }}>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={qty}
+                onChange={e => handleQtyChange(e.target.value)}
+                className="w-full bg-transparent text-white text-center text-xl font-bold outline-none"
+              />
+              <span className="text-white/50 text-base font-medium flex-shrink-0">{product.unit}</span>
+            </div>
+            <button
+              onClick={() => setQty(q => q + 10)}
+              className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-lg active:scale-90 transition-transform"
+              style={{ background: 'rgba(255,255,255,0.1)' }}
+            >
+              +
+            </button>
+          </div>
+          {/* Quick presets */}
+          <div className="flex gap-2 mt-3">
+            {(product.unit === 'ml'
+              ? [100, 150, 200, 250, 330, 500]
+              : [30, 50, 100, 150, 200, 250]
+            ).map(preset => (
+              <button
+                key={preset}
+                onClick={() => setQty(preset)}
+                className="flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-90"
+                style={{
+                  background: qty === preset ? 'rgba(10,132,255,0.3)' : 'rgba(255,255,255,0.06)',
+                  color: qty === preset ? '#0A84FF' : 'rgba(255,255,255,0.4)',
+                  border: qty === preset ? '1px solid rgba(10,132,255,0.5)' : '1px solid transparent',
+                }}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Nutrition grid */}
+        <div className="glass rounded-3xl p-4">
+          <p className="text-white/60 text-xs font-semibold uppercase tracking-wide mb-3">
+            Nutrición para {qty}{product.unit}
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: 'Calorías', value: nutrition.calories, unit: 'kcal', color: '#FF9F0A' },
+              { label: 'Proteína', value: nutrition.protein,  unit: 'g',    color: '#30D158' },
+              { label: 'Carbos',   value: nutrition.carbs,    unit: 'g',    color: '#0A84FF' },
+              { label: 'Grasas',   value: nutrition.fat,      unit: 'g',    color: '#FF453A' },
+            ].map(m => (
+              <div key={m.label} className="rounded-2xl px-2 py-3 text-center"
+                style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <p className="text-white font-bold text-base">{m.value}</p>
+                <p className="text-xs mt-0.5" style={{ color: m.color }}>{m.unit}</p>
+                <p className="text-white/35 text-[10px] mt-0.5">{m.label}</p>
+              </div>
+            ))}
+          </div>
+          {product.per100g.fiber > 0 && (
+            <div className="mt-2 rounded-2xl px-4 py-2 flex justify-between items-center"
+              style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <span className="text-white/50 text-xs">Fibra</span>
+              <span className="text-white/70 text-xs font-semibold">{nutrition.fiber}g</span>
+            </div>
+          )}
+          <p className="text-white/25 text-[10px] text-center mt-2">
+            Por 100{product.unit}: {product.per100g.calories} kcal · P {product.per100g.protein}g · C {product.per100g.carbs}g · G {product.per100g.fat}g
+          </p>
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={confirm}
+          className="w-full py-4 rounded-3xl font-bold text-white text-base active:scale-95 transition-transform flex items-center justify-center gap-2"
+          style={{ background: 'linear-gradient(145deg, #30D158, #25A244)', boxShadow: '0 4px 20px rgba(48,209,88,0.4)' }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Añadir al diario
+        </button>
+
+        <button
+          onClick={onBack}
+          className="w-full py-3 rounded-3xl text-sm font-semibold text-white/50 active:text-white/80 transition-colors"
+        >
+          Escanear otro producto
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Main Scanner Component ─────────────────────────────────────── */
 export default function BarcodeScanner({ onProduct, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -45,6 +236,7 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
   const [error, setError] = useState('')
   const [statusMsg, setStatusMsg] = useState('Iniciando cámara...')
   const [manualCode, setManualCode] = useState('')
+  const [previewProduct, setPreviewProduct] = useState<BarcodeProduct | null>(null)
 
   const hints = useMemo(() => {
     const map = new Map()
@@ -89,7 +281,8 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
         return
       }
 
-      onProduct(data.product)
+      // Show preview instead of immediately calling onProduct
+      setPreviewProduct(data.product as BarcodeProduct)
     } catch {
       if (!mountedRef.current) return
       setError('No se pudo buscar el producto. Comprueba la conexión e inténtalo de nuevo.')
@@ -105,6 +298,8 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
 
     stopScanner()
     setError('')
+    setPreviewProduct(null)
+    lastCodeRef.current = ''
     setCameraState('starting')
     setStatusMsg('Iniciando cámara...')
 
@@ -163,7 +358,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
     setStatusMsg('Leyendo código desde la imagen...')
 
     try {
-      // 1. Read file as data URL (avoids blob URL revocation race condition)
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const fr = new FileReader()
         fr.onload = () => resolve(fr.result as string)
@@ -171,7 +365,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
         fr.readAsDataURL(file)
       })
 
-      // 2. Load into an <img> element so we can draw it
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const el = new Image()
         el.onload = () => resolve(el)
@@ -179,7 +372,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
         el.src = dataUrl
       })
 
-      // 3. Draw to canvas (resize to max 1200px to improve ZXing detection rate)
       const canvas = document.createElement('canvas')
       const MAX = 1200
       const scale = Math.min(1, MAX / Math.max(img.width, img.height))
@@ -188,7 +380,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
 
-      // 4. Decode using ZXing low-level API (RGBLuminanceSource from canvas ImageData)
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const lum = new RGBLuminanceSource(imageData.data as unknown as Uint8ClampedArray, canvas.width, canvas.height)
       const bitmap = new BinaryBitmap(new HybridBinarizer(lum))
@@ -198,7 +389,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
       await lookupCode(result.getText())
     } catch (err) {
       if (!mountedRef.current) return
-      // ZXing throws NotFoundException when no barcode is found
       const isNotFound = err instanceof Error && (
         err.name === 'NotFoundException' ||
         err.message?.includes('NotFoundException') ||
@@ -225,14 +415,28 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
     void lookupCode(manualCode)
   }
 
-  // When camera is blocked, show a compact no-camera layout
+  // Show product preview when a product has been found
+  if (previewProduct) {
+    return (
+      <ProductPreview
+        product={previewProduct}
+        onConfirm={onProduct}
+        onBack={() => {
+          setPreviewProduct(null)
+          processingRef.current = false
+          void startCamera()
+        }}
+      />
+    )
+  }
+
+  // Camera blocked — compact no-camera layout
   if (cameraState === 'blocked') {
     return (
       <div className="fixed inset-0 flex flex-col" style={{ background: '#0A0A0B', zIndex: 200 }}>
         <input ref={fileRef} type="file" accept="image/*" className="hidden"
           onChange={e => e.target.files?.[0] && void scanImage(e.target.files[0])} />
 
-        {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-12 pb-4">
           <button onClick={() => { stopScanner(); onClose() }}
             className="glass-btn w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform">
@@ -246,9 +450,7 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
           </div>
         </div>
 
-        {/* Main content — centred */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
-          {/* Icon */}
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
             style={{ background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.2)' }}>
             <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -263,7 +465,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
             </p>
           </div>
 
-          {/* Error from lookup */}
           {error && (
             <div className="w-full max-w-sm rounded-2xl px-4 py-3 text-sm text-red-300 text-center"
               style={{ background: 'rgba(255,69,58,0.1)', border: '0.5px solid rgba(255,69,58,0.3)' }}>
@@ -271,7 +472,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
             </div>
           )}
 
-          {/* Loading */}
           {loading && (
             <div className="flex items-center gap-3 text-sm text-white/60">
               <div className="w-4 h-4 rounded-full border-2 border-[#34C759] border-t-transparent animate-spin" />
@@ -279,7 +479,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
             </div>
           )}
 
-          {/* Primary action — photo */}
           <button
             onClick={() => fileRef.current?.click()}
             disabled={loading}
@@ -293,7 +492,6 @@ export default function BarcodeScanner({ onProduct, onClose }: Props) {
             Hacer foto / elegir imagen
           </button>
 
-          {/* Manual entry */}
           <form onSubmit={submitManual} className="w-full max-w-sm glass rounded-2xl p-2">
             <div className="flex items-center gap-2">
               <input

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { searchRestaurants, type RestaurantItem } from '@/lib/restaurants'
+import type { BarcodeProduct } from '@/components/BarcodeScanner'
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
@@ -89,6 +90,8 @@ export default function LogPage() {
   const [recentFoods, setRecentFoods] = useState<RecentFood[]>([])
 
   const [showBarcode, setShowBarcode] = useState(false)
+  const [pendingBarcodeProduct, setPendingBarcodeProduct] = useState<BarcodeProduct | null>(null)
+  const [barcodeMealType, setBarcodeMealType] = useState<MealType>(guessCurrentMeal())
   const [restaurantQuery, setRestaurantQuery] = useState('')
   const [restaurantResults, setRestaurantResults] = useState<ReturnType<typeof searchRestaurants>>([])
   const [activeTab, setActiveTab] = useState<'photo' | 'barcode' | 'restaurant'>('photo')
@@ -200,17 +203,26 @@ export default function LogPage() {
     setSaving(false)
   }
 
-  async function handleBarcodeProduct(product: { name: string; brand: string; portion: string; calories: number; protein: number; carbs: number; fat: number; fiber: number; barcode: string }) {
+  function handleBarcodeProduct(product: BarcodeProduct) {
     setShowBarcode(false)
+    setBarcodeMealType(guessCurrentMeal())
+    setPendingBarcodeProduct(product)
+  }
+
+  async function saveBarcodeProduct(product: BarcodeProduct, meal: MealType) {
+    setPendingBarcodeProduct(null)
     setSaving(true); setError('')
     try {
       const today = new Date().toISOString().split('T')[0]
+      const photoPath = product.image || `emoji:${product.emoji || '📦'}`
       const res = await fetch('/api/meals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date: today, meal_type: mealType,
+          date: today,
+          meal_type: meal,
           name: product.brand ? `${product.brand} — ${product.name}` : product.name,
+          photo_path: photoPath,
           foods: [{ name: product.name, portion: product.portion, calories: product.calories, protein: product.protein, carbs: product.carbs, fat: product.fat, fiber: product.fiber }],
           calories: product.calories, protein: product.protein, carbs: product.carbs, fat: product.fat, fiber: product.fiber,
         }),
@@ -560,6 +572,69 @@ export default function LogPage() {
           onProduct={handleBarcodeProduct}
           onClose={() => setShowBarcode(false)}
         />
+      )}
+
+      {/* Barcode meal type picker bottom sheet */}
+      {pendingBarcodeProduct && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setPendingBarcodeProduct(null)}>
+          <div
+            className="w-full rounded-t-3xl px-5 pt-5"
+            style={{ background: '#1C1C1E' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'rgba(255,255,255,0.2)' }} />
+
+            {/* Mini product summary */}
+            <div className="flex items-center gap-3 mb-5 glass rounded-2xl p-3">
+              {pendingBarcodeProduct.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={pendingBarcodeProduct.image} alt="" className="w-12 h-12 rounded-xl object-contain flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+              ) : (
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, rgba(10,132,255,0.18), rgba(94,92,230,0.18))' }}>
+                  <span style={{ fontSize: 26 }}>{pendingBarcodeProduct.emoji || '📦'}</span>
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-white font-semibold text-sm truncate">{pendingBarcodeProduct.name || 'Producto escaneado'}</p>
+                <p className="text-white/45 text-xs">{pendingBarcodeProduct.portion} · {pendingBarcodeProduct.calories} kcal</p>
+              </div>
+            </div>
+
+            <p className="text-white/60 text-xs font-semibold uppercase tracking-wide mb-3">¿Cuándo lo comiste?</p>
+            <div className="space-y-2 mb-5">
+              {MEAL_TYPES.map(m => (
+                <button
+                  key={m.value}
+                  onClick={() => setBarcodeMealType(m.value)}
+                  className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 transition-all active:scale-95"
+                  style={{
+                    background: barcodeMealType === m.value ? 'rgba(10,132,255,0.18)' : 'rgba(255,255,255,0.06)',
+                    border: barcodeMealType === m.value ? '1px solid rgba(10,132,255,0.5)' : '1px solid transparent',
+                  }}
+                >
+                  <span className="text-xl">{m.icon}</span>
+                  <span className="text-white font-medium">{m.label}</span>
+                  {barcodeMealType === m.value && (
+                    <svg className="ml-auto w-5 h-5 text-[#0A84FF]" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => saveBarcodeProduct(pendingBarcodeProduct, barcodeMealType)}
+              disabled={saving}
+              className="w-full py-4 rounded-3xl font-bold text-white text-base active:scale-95 transition-transform disabled:opacity-50"
+              style={{ background: 'linear-gradient(145deg, #30D158, #25A244)', boxShadow: '0 4px 20px rgba(48,209,88,0.4)', marginBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
+            >
+              {saving ? 'Guardando…' : 'Añadir al diario'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
