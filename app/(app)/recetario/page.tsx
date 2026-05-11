@@ -433,7 +433,7 @@ export default function RecetarioPage() {
                 </button>
               ))}
             </div>
-            <div className="px-4 pb-6 flex gap-3">
+            <div className="px-4 flex gap-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}>
               <button onClick={() => setMealTypePicker(null)} className="flex-1 py-3.5 rounded-2xl text-zinc-400 font-semibold text-sm border" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>Cancelar</button>
               <button
                 onClick={() => logAsFood(mealTypePicker, selectedMealType)}
