@@ -101,9 +101,7 @@ export default function RecetarioPage() {
     // Pass emoji as photo_path prefix when there's no real photo
     const photoPath = recipe.photo_path
       ? recipe.photo_path
-      : recipe.emoji
-        ? `emoji:${recipe.emoji}`
-        : null
+      : `emoji:${recipe.emoji || '🍽️'}`
     const res = await fetch('/api/meals', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -244,9 +242,9 @@ export default function RecetarioPage() {
                 </div>
               </div>
             )}
-            {!recipe.photo_path && recipe.emoji && (
+            {!recipe.photo_path && (
               <div className="relative w-full h-28 flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.18) 0%, rgba(168,85,247,0.18) 100%)' }}>
-                <span style={{ fontSize: 64, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}>{recipe.emoji}</span>
+                <span style={{ fontSize: 64, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}>{recipe.emoji || '🍽️'}</span>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 <div className="absolute bottom-3 left-4">
                   <p className="font-bold text-white text-lg">{recipe.name}</p>
@@ -255,13 +253,7 @@ export default function RecetarioPage() {
               </div>
             )}
             <div className="p-4">
-              {!recipe.photo_path && !recipe.emoji && (
-                <div className="flex justify-between items-start mb-3">
-                  <div><h3 className="font-bold text-zinc-100">{recipe.name}</h3><p className="text-xs text-zinc-500 mt-0.5">{recipe.servings} ración{recipe.servings !== 1 ? 'es' : ''}</p></div>
-                  <div className="text-right"><div className="text-xl font-bold text-zinc-100">{Math.round(recipe.calories)}</div><div className="text-xs text-zinc-500">kcal/ración</div></div>
-                </div>
-              )}
-              {(recipe.photo_path || recipe.emoji) && <p className="text-sm font-bold text-brand-400 mb-3">{Math.round(recipe.calories)} kcal/ración</p>}
+              {<p className="text-sm font-bold text-brand-400 mb-3">{Math.round(recipe.calories)} kcal/ración</p>}
 
               <div className="flex gap-2 mb-3">
                 {[['P', recipe.protein, 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20'], ['C', recipe.carbs, 'bg-orange-500/15 text-orange-400 border-orange-500/20'], ['G', recipe.fat, 'bg-red-500/15 text-red-400 border-red-500/20']].map(([l, v, c]) => (
