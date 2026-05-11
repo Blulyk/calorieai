@@ -9,8 +9,25 @@ interface Recipe {
   id: string; name: string; description: string | null
   ingredients: string[]; instructions: string | null; foods: FoodItem[]
   calories: number; protein: number; carbs: number; fat: number; fiber: number
-  servings: number; photo_path: string | null
+  servings: number; photo_path: string | null; emoji: string | null
 }
+
+type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+function defaultMealType(): MealType {
+  const h = new Date().getHours()
+  if (h >= 6 && h < 11) return 'breakfast'
+  if (h >= 11 && h < 16) return 'lunch'
+  if (h >= 16 && h < 21) return 'dinner'
+  return 'snack'
+}
+
+const MEAL_TYPE_OPTIONS: { value: MealType; label: string; emoji: string; color: string }[] = [
+  { value: 'breakfast', label: 'Desayuno', emoji: '🌅', color: '#ffb84d' },
+  { value: 'lunch',     label: 'Almuerzo', emoji: '☀️', color: '#38bdf8' },
+  { value: 'dinner',    label: 'Cena',     emoji: '🌙', color: '#a78bfa' },
+  { value: 'snack',     label: 'Snack',    emoji: '🍎', color: '#fb7185' },
+]
 
 export default function RecetarioPage() {
   const router = useRouter()
@@ -20,6 +37,8 @@ export default function RecetarioPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [logging, setLogging] = useState<string | null>(null)
+  const [mealTypePicker, setMealTypePicker] = useState<Recipe | null>(null)
+  const [selectedMealType, setSelectedMealType] = useState<MealType>(defaultMealType())
   const [deleting, setDeleting] = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
@@ -75,14 +94,21 @@ export default function RecetarioPage() {
     setAnalyzing(false)
   }
 
-  async function logAsFood(recipe: Recipe) {
+  async function logAsFood(recipe: Recipe, mealType: MealType) {
+    setMealTypePicker(null)
     setLogging(recipe.id)
     const today = new Date().toISOString().split('T')[0]
+    // Pass emoji as photo_path prefix when there's no real photo
+    const photoPath = recipe.photo_path
+      ? recipe.photo_path
+      : recipe.emoji
+        ? `emoji:${recipe.emoji}`
+        : null
     const res = await fetch('/api/meals', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: today,
-        meal_type: 'snack',
+        meal_type: mealType,
         name: recipe.name,
         foods: recipe.foods,
         calories: recipe.calories,
@@ -90,7 +116,7 @@ export default function RecetarioPage() {
         carbs: recipe.carbs,
         fat: recipe.fat,
         fiber: recipe.fiber,
-        photo_path: recipe.photo_path || null,
+        photo_path: photoPath,
         notes: 'Añadido desde el recetario',
       }),
     })
@@ -218,14 +244,24 @@ export default function RecetarioPage() {
                 </div>
               </div>
             )}
+            {!recipe.photo_path && recipe.emoji && (
+              <div className="relative w-full h-28 flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.18) 0%, rgba(168,85,247,0.18) 100%)' }}>
+                <span style={{ fontSize: 64, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}>{recipe.emoji}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                <div className="absolute bottom-3 left-4">
+                  <p className="font-bold text-white text-lg">{recipe.name}</p>
+                  <p className="text-white/60 text-xs">{recipe.servings} ración{recipe.servings !== 1 ? 'es' : ''}</p>
+                </div>
+              </div>
+            )}
             <div className="p-4">
-              {!recipe.photo_path && (
+              {!recipe.photo_path && !recipe.emoji && (
                 <div className="flex justify-between items-start mb-3">
                   <div><h3 className="font-bold text-zinc-100">{recipe.name}</h3><p className="text-xs text-zinc-500 mt-0.5">{recipe.servings} ración{recipe.servings !== 1 ? 'es' : ''}</p></div>
                   <div className="text-right"><div className="text-xl font-bold text-zinc-100">{Math.round(recipe.calories)}</div><div className="text-xs text-zinc-500">kcal/ración</div></div>
                 </div>
               )}
-              {recipe.photo_path && <p className="text-sm font-bold text-brand-400 mb-3">{Math.round(recipe.calories)} kcal/ración</p>}
+              {(recipe.photo_path || recipe.emoji) && <p className="text-sm font-bold text-brand-400 mb-3">{Math.round(recipe.calories)} kcal/ración</p>}
 
               <div className="flex gap-2 mb-3">
                 {[['P', recipe.protein, 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20'], ['C', recipe.carbs, 'bg-orange-500/15 text-orange-400 border-orange-500/20'], ['G', recipe.fat, 'bg-red-500/15 text-red-400 border-red-500/20']].map(([l, v, c]) => (
@@ -270,7 +306,12 @@ export default function RecetarioPage() {
               )}
 
               <div className="flex gap-2">
-                <button onClick={() => logAsFood(recipe)} disabled={logging === recipe.id} className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold active:scale-95 transition-transform disabled:opacity-60" style={{ boxShadow: '0 0 12px rgba(34,197,94,0.25)' }}>
+                <button
+                  onClick={() => { setSelectedMealType(defaultMealType()); setMealTypePicker(recipe) }}
+                  disabled={logging === recipe.id}
+                  className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold active:scale-95 transition-transform disabled:opacity-60"
+                  style={{ boxShadow: '0 0 12px rgba(34,197,94,0.25)' }}
+                >
                   {logging === recipe.id ? 'Registrando…' : '+ Añadir como comida'}
                 </button>
                 <button onClick={() => handleDelete(recipe.id)} disabled={deleting === recipe.id} className="px-3 py-2.5 rounded-xl text-red-500 text-sm font-medium active:scale-95" style={{ border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -372,6 +413,45 @@ export default function RecetarioPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {mealTypePicker && (
+        <div className="fixed inset-0 z-[80] flex items-end" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => { if (e.target === e.currentTarget) setMealTypePicker(null) }}>
+          <div className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden animate-slide-up" style={{ background: 'linear-gradient(180deg,rgba(25,25,45,0.98) 0%,rgba(18,18,32,1) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none' }}>
+            <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
+              <h2 className="text-base font-bold text-zinc-100">¿Cuándo vas a comer esto?</h2>
+              <p className="text-xs text-zinc-500 mt-0.5">{mealTypePicker.name}</p>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+              {MEAL_TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedMealType(opt.value)}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all"
+                  style={{
+                    background: selectedMealType === opt.value ? `${opt.color}22` : 'rgba(255,255,255,0.05)',
+                    border: `1.5px solid ${selectedMealType === opt.value ? opt.color : 'rgba(255,255,255,0.08)'}`,
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>{opt.emoji}</span>
+                  <span className="text-sm font-semibold" style={{ color: selectedMealType === opt.value ? opt.color : '#a1a1aa' }}>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="px-4 pb-6 flex gap-3">
+              <button onClick={() => setMealTypePicker(null)} className="flex-1 py-3.5 rounded-2xl text-zinc-400 font-semibold text-sm border" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>Cancelar</button>
+              <button
+                onClick={() => logAsFood(mealTypePicker, selectedMealType)}
+                disabled={!!logging}
+                className="flex-1 py-3.5 rounded-2xl bg-brand-500 text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-60"
+                style={{ boxShadow: '0 0 16px rgba(249,115,22,0.35)' }}
+              >
+                {logging ? 'Registrando…' : 'Añadir'}
+              </button>
+            </div>
           </div>
         </div>
       )}

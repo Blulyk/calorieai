@@ -26,6 +26,10 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
   const meta = MEAL_META[meal.meal_type] || MEAL_META.snack
   const time = new Date(meal.created_at * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
 
+  const isEmoji = meal.photo_path?.startsWith('emoji:') ?? false
+  const emojiChar = isEmoji ? meal.photo_path!.slice(6) : null
+  const hasRealPhoto = !!meal.photo_path && !isEmoji
+
   async function handleDelete() {
     if (!confirm('¿Eliminar esta comida?')) return
     setDeleting(true)
@@ -35,10 +39,10 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
 
   return (
     <article className="glass liquid-card animate-fadeInUp overflow-hidden" style={{ animationDelay: `${index * 0.06}s` }}>
-      {meal.photo_path && (
+      {hasRealPhoto && (
         <div className="relative h-48 w-full overflow-hidden">
           <img
-            src={meal.photo_path}
+            src={meal.photo_path!}
             alt={meal.name || 'Foto comida'}
             className="relative z-0 h-full w-full object-cover"
             loading="lazy"
@@ -62,8 +66,29 @@ export default function MealCard({ meal, onDelete, index = 0 }: Props) {
         </div>
       )}
 
-      <div className="relative z-30 p-4" style={meal.photo_path ? { background: '#1d1d1f', borderTop: '1px solid rgba(255,255,255,0.08)' } : undefined}>
-        {!meal.photo_path && (
+      {isEmoji && emojiChar && (
+        <div className="relative h-28 w-full flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.18) 0%, rgba(168,85,247,0.18) 100%)' }}>
+          <span style={{ fontSize: 64, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}>{emojiChar}</span>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="line-clamp-1 text-base font-bold leading-tight text-white">{meal.name || 'Comida'}</h3>
+              <p className="mt-0.5 text-xs font-medium text-white/60">
+                <span style={{ color: meta.color }}>{meta.label}</span>
+                <span className="px-1.5 text-white/32">·</span>
+                {time}
+              </p>
+            </div>
+            <div className="metric-pill glass-pill rounded-2xl px-3 py-2 text-right">
+              <p className="metric-pill-value font-bold text-white">{Math.round(meal.calories)}</p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/48">kcal</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative z-30 p-4" style={(hasRealPhoto || isEmoji) ? { background: '#1d1d1f', borderTop: '1px solid rgba(255,255,255,0.08)' } : undefined}>
+        {!hasRealPhoto && !isEmoji && (
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="glass-pill flex h-11 w-11 items-center justify-center rounded-2xl text-[10px] font-black tracking-wider" style={{ color: meta.color }}>

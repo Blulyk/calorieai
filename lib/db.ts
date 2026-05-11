@@ -127,6 +127,8 @@ function initSchema(db: DatabaseSync) {
 
   db.exec('UPDATE daily_water SET water_ml = glasses * 250 WHERE water_ml = 0 AND glasses > 0')
 
+  try { db.exec('ALTER TABLE recipes ADD COLUMN emoji TEXT') } catch { /* already exists */ }
+
   const newUserSettingsCols = [
     'fasting_enabled INTEGER DEFAULT 0',
     'fasting_protocol TEXT DEFAULT \'16:8\'',
@@ -324,9 +326,9 @@ export function getRecipeById(id: string, userId: string) {
 }
 export function createRecipe(recipe: Omit<Recipe, 'created_at' | 'updated_at'>) {
   getDb().prepare(`
-    INSERT INTO recipes (id, user_id, name, description, ingredients, instructions, foods, calories, protein, carbs, fat, fiber, servings, photo_path)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(recipe.id, recipe.user_id, recipe.name, recipe.description ?? null, recipe.ingredients, recipe.instructions ?? null, recipe.foods, recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber, recipe.servings, recipe.photo_path ?? null)
+    INSERT INTO recipes (id, user_id, name, description, ingredients, instructions, foods, calories, protein, carbs, fat, fiber, servings, photo_path, emoji)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(recipe.id, recipe.user_id, recipe.name, recipe.description ?? null, recipe.ingredients, recipe.instructions ?? null, recipe.foods, recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber, recipe.servings, recipe.photo_path ?? null, recipe.emoji ?? null)
 }
 export function updateRecipePhoto(id: string, userId: string, photoPath: string) {
   getDb().prepare('UPDATE recipes SET photo_path = ?, updated_at = unixepoch() WHERE id = ? AND user_id = ?').run(photoPath, id, userId)
@@ -432,6 +434,7 @@ export interface Recipe {
   fiber: number
   servings: number
   photo_path: string | null
+  emoji: string | null
   created_at: number
   updated_at: number
 }

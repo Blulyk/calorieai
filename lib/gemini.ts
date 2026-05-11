@@ -278,6 +278,21 @@ Return ONLY valid JSON (no markdown):
   }
 }
 
+export async function suggestRecipeEmoji(name: string, ingredients: string[], apiKey: string): Promise<string> {
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+    const prompt = `Reply with exactly ONE emoji that best represents this recipe: "${name}" (ingredients: ${ingredients.slice(0, 5).join(', ')}). Reply with only the single emoji character, no text, no punctuation.`
+    const result = await model.generateContent(prompt)
+    const text = result.response.text().trim()
+    // Extract first emoji from response
+    const emojiMatch = text.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/u)
+    return emojiMatch ? emojiMatch[0] : '🍽️'
+  } catch {
+    return '🍽️'
+  }
+}
+
 export async function analyzeRecipe(
   name: string,
   ingredients: string[],
